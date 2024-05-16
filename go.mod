@@ -1,6 +1,7 @@
 module github.com/ranjandas/shikari
 
-go 1.22.3
+// X.Y format only supported under vscode
+go 1.22 
 
 require (
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
