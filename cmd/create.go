@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"sync"
+	"time"
 
 	"github.com/spf13/cobra"
 )
@@ -37,6 +38,8 @@ carrying the name as a prefix to easily identify.
 		for _, vmName := range vmNames {
 			wg.Add(1)
 			go spawnLimaVM(vmName, &wg, errCh)
+			// @TODO - Serialize properly
+			time.Sleep(10 * time.Second)
 		}
 
 		// Wait for all goroutines to finish
