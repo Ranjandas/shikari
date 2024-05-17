@@ -29,15 +29,23 @@ carrying the name as a prefix to easily identify.
 	Run: func(cmd *cobra.Command, args []string) {
 		fmt.Println("create called")
 
-		vmNames := generateInstanceNames(name, servers, clients)
+		serverVMs := generateServerInstanceNames(name, servers)
 
 		var wg sync.WaitGroup
-		errCh := make(chan error, len(vmNames))
+		errCh := make(chan error, len(serverVMs))
 
 		// Spawn Lima VMs concurrently
-		for _, vmName := range vmNames {
+		for _, vmName := range serverVMs {
 			wg.Add(1)
-			go spawnLimaVM(vmName, &wg, errCh)
+			go spawnLimaVM(vmName, "server", &wg, errCh)
+			// @TODO - Serialize properly
+			time.Sleep(10 * time.Second)
+		}
+
+		clientVMs := generateClientInstanceNames(name, clients)
+		for _, vmName := range clientVMs {
+			wg.Add(1)
+			go spawnLimaVM(vmName, "client", &wg, errCh)
 			// @TODO - Serialize properly
 			time.Sleep(10 * time.Second)
 		}
@@ -80,12 +88,17 @@ func init() {
 
 }
 
-func spawnLimaVM(vmName string, wg *sync.WaitGroup, errCh chan<- error) {
+func spawnLimaVM(vmName string, modeEnv string, wg *sync.WaitGroup, errCh chan<- error) {
 	defer wg.Done()
 
 	tmpl := fmt.Sprintf("template://%s", template)
+
+	//--set '. |= .env.mode="server", .env.cluster="murphy"'
+	yqExpression := fmt.Sprintf(`'. |= .env.CLUSTER="%s", .env.MODE="%s"'`, name, modeEnv)
+
 	// Define the command to spawn a Lima VM
-	cmd := exec.Command("limactl", "start", "--name", vmName, tmpl, "--tty=false")
+	limaCmd := fmt.Sprintf("limactl start --name %s %s --tty=false --set %s", vmName, tmpl, yqExpression)
+	cmd := exec.Command("/bin/sh", "-c", limaCmd)
 
 	// Set the output to os.Stdout and os.Stderr
 	cmd.Stdout = os.Stdout
@@ -100,7 +113,7 @@ func spawnLimaVM(vmName string, wg *sync.WaitGroup, errCh chan<- error) {
 	fmt.Printf("Lima VM %s spawned successfully.\n", vmName)
 }
 
-func generateInstanceNames(name string, numServers int, numClients int) []string {
+func generateServerInstanceNames(name string, numServers int) []string {
 
 	s := make([]string, 0)
 
@@ -109,6 +122,12 @@ func generateInstanceNames(name string, numServers int, numClients int) []string
 
 		s = append(s, name)
 	}
+	return s
+}
+
+func generateClientInstanceNames(name string, numClients int) []string {
+
+	s := make([]string, 0)
 
 	for n := 1; n <= numClients; n++ {
 		name := fmt.Sprintf("%s-cli-%02d", name, n)
