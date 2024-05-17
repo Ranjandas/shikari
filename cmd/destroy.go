@@ -6,6 +6,7 @@ package cmd
 import (
 	"fmt"
 	"sync"
+	"time"
 
 	lima "github.com/ranjandas/shikari/app"
 	"github.com/spf13/cobra"
@@ -40,6 +41,8 @@ var destroyCmd = &cobra.Command{
 		for _, vmName := range stoppedInstances {
 			wg.Add(1)
 			go lima.DeleteLimaVM(vmName.Name, &wg, errCh)
+			// @TODO - Serialize properly
+			time.Sleep(10 * time.Second)
 		}
 
 		// Wait for all goroutines to finish

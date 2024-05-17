@@ -28,9 +28,12 @@ func ListInstances() []LimaVM {
 	var vm LimaVM
 
 	for _, line := range bytes.Split(output, []byte("\n")) {
-		json.Unmarshal([]byte(line), &vm)
+		// condition to avoid duplicate entries
+		if string(line) != "" {
+			json.Unmarshal([]byte(line), &vm)
 
-		vms = append(vms, vm)
+			vms = append(vms, vm)
+		}
 	}
 	return vms
 }

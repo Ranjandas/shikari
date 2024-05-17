@@ -56,7 +56,7 @@ carrying the name as a prefix to easily identify.
 }
 
 var servers, clients int
-var name string
+var name, template string
 
 func init() {
 	rootCmd.AddCommand(createCmd)
@@ -73,6 +73,7 @@ func init() {
 	createCmd.Flags().IntVarP(&servers, "servers", "s", 1, "number of servers")
 	createCmd.Flags().IntVarP(&clients, "clients", "c", 1, "number of clients")
 	createCmd.Flags().StringVarP(&name, "name", "n", "shikari", "name of the cluster")
+	createCmd.Flags().StringVarP(&template, "template", "t", "alpine", "name of lima template for the VMs")
 	createCmd.MarkFlagRequired("name")
 	createCmd.MarkFlagRequired("servers")
 	createCmd.MarkFlagRequired("clients")
@@ -82,8 +83,9 @@ func init() {
 func spawnLimaVM(vmName string, wg *sync.WaitGroup, errCh chan<- error) {
 	defer wg.Done()
 
+	tmpl := fmt.Sprintf("template://%s", template)
 	// Define the command to spawn a Lima VM
-	cmd := exec.Command("limactl", "start", "--name", vmName, "template://alpine", "--tty=false")
+	cmd := exec.Command("limactl", "start", "--name", vmName, tmpl, "--tty=false")
 
 	// Set the output to os.Stdout and os.Stderr
 	cmd.Stdout = os.Stdout
