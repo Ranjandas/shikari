@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"strings"
 	"sync"
 	"time"
 
@@ -21,15 +22,16 @@ var createCmd = &cobra.Command{
 
 For example:
 
-$ shikari create --name murphy --servers 3  --clients 3
+$ shikari create --name murphy --servers 3  --clients 3 --template hashibox --env CONSUL_LICENSE=$(cat consul.hclic)
 
 The above command will create a 3 server and 3 client cluster, each vm
 carrying the name as a prefix to easily identify.
 `,
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("create called")
 
 		serverVMs := generateServerInstanceNames(name, servers)
+
+		userDefinedEnvs := generateEnvArgs(cmd)
 
 		var wg sync.WaitGroup
 		errCh := make(chan error, len(serverVMs))
@@ -37,7 +39,7 @@ carrying the name as a prefix to easily identify.
 		// Spawn Lima VMs concurrently
 		for _, vmName := range serverVMs {
 			wg.Add(1)
-			go spawnLimaVM(vmName, "server", &wg, errCh)
+			go spawnLimaVM(vmName, "server", userDefinedEnvs, &wg, errCh)
 			// @TODO - Serialize properly
 			time.Sleep(10 * time.Second)
 		}
@@ -45,7 +47,7 @@ carrying the name as a prefix to easily identify.
 		clientVMs := generateClientInstanceNames(name, clients)
 		for _, vmName := range clientVMs {
 			wg.Add(1)
-			go spawnLimaVM(vmName, "client", &wg, errCh)
+			go spawnLimaVM(vmName, "client", userDefinedEnvs, &wg, errCh)
 			// @TODO - Serialize properly
 			time.Sleep(10 * time.Second)
 		}
@@ -82,22 +84,28 @@ func init() {
 	createCmd.Flags().IntVarP(&clients, "clients", "c", 1, "number of clients")
 	createCmd.Flags().StringVarP(&name, "name", "n", "shikari", "name of the cluster")
 	createCmd.Flags().StringVarP(&template, "template", "t", "alpine", "name of lima template for the VMs")
+	createCmd.Flags().StringSliceP("env", "e", []string{}, "provide environment vars in the for key=value (can be used multiple times)")
 	createCmd.MarkFlagRequired("name")
 	createCmd.MarkFlagRequired("servers")
 	createCmd.MarkFlagRequired("clients")
 
 }
 
-func spawnLimaVM(vmName string, modeEnv string, wg *sync.WaitGroup, errCh chan<- error) {
+func spawnLimaVM(vmName string, modeEnv string, userEnv string, wg *sync.WaitGroup, errCh chan<- error) {
 	defer wg.Done()
 
 	tmpl := fmt.Sprintf("template://%s", template)
 
 	//--set '. |= .env.mode="server", .env.cluster="murphy"'
-	yqExpression := fmt.Sprintf(`'. |= .env.CLUSTER="%s", .env.MODE="%s"'`, name, modeEnv)
+	yqExpression := fmt.Sprintf(`.env.CLUSTER="%s" | .env.MODE="%s"`, name, modeEnv)
+
+	// append user defined environment variable
+	if userEnv != "" {
+		yqExpression = fmt.Sprintf("%s | %s", yqExpression, userEnv)
+	}
 
 	// Define the command to spawn a Lima VM
-	limaCmd := fmt.Sprintf("limactl start --name %s %s --tty=false --set %s", vmName, tmpl, yqExpression)
+	limaCmd := fmt.Sprintf("limactl start --name %s %s --tty=false --set '%s'", vmName, tmpl, yqExpression)
 	cmd := exec.Command("/bin/sh", "-c", limaCmd)
 
 	// Set the output to os.Stdout and os.Stderr
@@ -135,4 +143,27 @@ func generateClientInstanceNames(name string, numClients int) []string {
 		s = append(s, name)
 	}
 	return s
+}
+
+func generateEnvArgs(cmd *cobra.Command) string {
+	envs, _ := cmd.Flags().GetStringSlice("env")
+
+	var envCSV []string
+	for _, e := range envs {
+		if !strings.Contains(e, "=") {
+			fmt.Println("Invalid env format")
+			os.Exit(1)
+		}
+
+		kv := strings.SplitN(e, "=", 2)
+
+		if len(kv) != 2 || kv[0] == "" || kv[1] == "" {
+			fmt.Println("Invalid env format")
+			os.Exit(1)
+		}
+
+		envCSV = append(envCSV, fmt.Sprintf(".env.%s=\"%s\"", kv[0], kv[1]))
+	}
+
+	return strings.Join(envCSV, "| ")
 }
