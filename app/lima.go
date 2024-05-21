@@ -120,3 +120,20 @@ func DeleteLimaVM(vmName string, wg *sync.WaitGroup, errCh chan<- error) {
 
 	fmt.Printf("Lima VM %s deleted successfully.\n", vmName)
 }
+
+func ExecLimaVM(vmName string, command string) {
+
+	fmt.Printf("\nRunning command againt: %s\n\n", vmName)
+
+	cmd := exec.Command("/bin/sh", "-c", fmt.Sprintf("limactl shell %s %s", vmName, command))
+
+	// Set the output to os.Stdout and os.Stderr
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	// Run the command
+	if err := cmd.Run(); err != nil {
+		fmt.Printf("error executing command against VM %s: %v\n", vmName, err)
+		return
+	}
+}
