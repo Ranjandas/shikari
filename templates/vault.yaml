@@ -1,0 +1,100 @@
+images:
+# Try to use release-yyyyMMdd image if available. Note that release-yyyyMMdd will be removed after several months.
+- location: "https://cloud-images.ubuntu.com/releases/24.04/release-20240423/ubuntu-24.04-server-cloudimg-amd64.img"
+  arch: "x86_64"
+  digest: "sha256:32a9d30d18803da72f5936cf2b7b9efcb4d0bb63c67933f17e3bdfd1751de3f3"
+- location: "https://cloud-images.ubuntu.com/releases/24.04/release-20240423/ubuntu-24.04-server-cloudimg-arm64.img"
+  arch: "aarch64"
+  digest: "sha256:c841bac00925d3e6892d979798103a867931f255f28fefd9d5e07e3e22d0ef22"
+# Fallback to the latest release image.
+# Hint: run `limactl prune` to invalidate the cache
+- location: "https://cloud-images.ubuntu.com/releases/24.04/release/ubuntu-24.04-server-cloudimg-amd64.img"
+  arch: "x86_64"
+- location: "https://cloud-images.ubuntu.com/releases/24.04/release/ubuntu-24.04-server-cloudimg-arm64.img"
+  arch: "aarch64"
+
+mounts: []
+containerd:
+  system: false
+  user: false
+provision:
+  - mode: system # configure Consul
+    script: |
+      #!/bin/bash
+      
+      wget -O- https://apt.releases.hashicorp.com/gpg | sudo gpg --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg
+      echo "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/hashicorp.list
+      sudo apt update && sudo apt install vault && sudo apt install terraform && sudo apt-get -y install unzip curl gnupg software-properties-common jq
+
+      echo "Creating directory structure ..."
+      mkdir -p /etc/vault.d/pki
+      mkdir /opt/vault
+      chown vault:vault /opt/vault
+      chown -R root:vault /etc/vault.d
+      chmod -R 0750 /etc/vault.d
+
+      mkdir /var/{lib,log}/vault
+      chown vault:vault /var/{lib,log}/vault
+      chmod 0750 /var/{lib,log}/vault
+
+      sudo update-ca-certificates --fresh
+
+      echo "Creating Vault configuration ..."
+      echo 'export VAULT_ADDR="http://127.0.0.1:8200" ; export VAULT_RAFT_AUTOPILOT_DISABLE=true' | tee /etc/profile.d/vault.sh
+      
+      cat <<-EOF > /etc/vault.d/vault.hcl
+      api_addr = "http://$(hostname -s):8200"
+      cluster_addr = "http://$(hostname -s):8201"
+      ui = true
+      log_level="trace"
+
+      #license_path = "/vagrant/vault.license"
+
+      storage "raft" {
+      path = "/opt/vault"
+      }
+
+      listener "tcp" {
+      address       = "0.0.0.0:8200"
+      tls_disable   = "true"
+      cluster_address = "0.0.0.0:8201"
+      }
+      
+      # this will disable perf standby even if the license allows
+      #disable_performance_standby = true
+      
+      EOF
+
+      chown root:vault /etc/vault.d/vault.hcl
+      chmod 0640 /etc/vault.d/vault.hcl
+  - mode:
+    script: |
+      systemctl enable --now vault
+  - mode: user
+    script: |
+      #!/bin/sh
+      vault -autocomplete-install
+  - mode: user
+    script: |
+      #!/bin/sh
+      #if [[ "$HOSTNAME" == "v1" ]]; then
+      sleep 20
+      vault operator init -key-shares=1 -key-threshold=1 -format=json > ~/VaultCreds.json
+      sudo mv ~/VaultCreds.json /etc/vault.d/VaultCreds.json
+      sudo chown root:vault /etc/vault.d/VaultCreds.json
+      sudo chmod 0640 /etc/vault.d/VaultCreds.json    
+      sleep 10
+      vault status
+      sleep 5
+      sudo cat /etc/vault.d/VaultCreds.json
+      export VAULT_UNSEAL_KEY=$(sudo cat /etc/vault.d/VaultCreds.json | jq -r .unseal_keys_b64[0])
+      vault operator unseal $VAULT_UNSEAL_KEY
+      sleep 5
+      echo 'export VAULT_ADDR="http://127.0.0.1:8200" ; export VAULT_UNSEAL_KEY=$(sudo cat /etc/vault.d/VaultCreds.json | jq -r .unseal_keys_b64[0]) ; export VAULT_RAFT_AUTOPILOT_DISABLE=true ; export VAULT_TOKEN=$(sudo cat /etc/vault.d/VaultCreds.json | jq -r .root_token)' | sudo tee /etc/profile.d/vault.sh
+      export VAULT_TOKEN=$(sudo cat /etc/vault.d/VaultCreds.json | jq -r .root_token)
+      vault login $(sudo cat /etc/vault.d/VaultCreds.json | jq -r .root_token)
+      vault status
+      fi
+networks:
+  - lima: user-v2
+vmType: qemu
