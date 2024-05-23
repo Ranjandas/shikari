@@ -24,36 +24,27 @@ var destroyCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		//fmt.Println("destroy called")
 
-		instances := lima.GetInstancesByPrefix(name)
-		runningInstances := lima.GetInstancesByStatus(instances, "running")
+		allInstances := lima.GetInstancesByPrefix(name)
 
-		if len(runningInstances) != 0 {
+		if len(allInstances) == 0 {
+			fmt.Printf("No instances in the cluster %s\n", name)
+			return
+		}
+
+		if force {
+			destroyVM(allInstances, true)
+			return
+		}
+
+		runningInstances := lima.GetInstancesByStatus(allInstances, "running")
+		if len(runningInstances) > 0 {
 			fmt.Println("There are running instances in the cluster, cannot destroy!")
 			return
 		}
 
-		stoppedInstances := lima.GetInstancesByStatus(instances, "stopped")
-
-		var wg sync.WaitGroup
-		errCh := make(chan error, len(stoppedInstances))
-
-		// Stop Lima VMs concurrently
-		for _, vmName := range stoppedInstances {
-			wg.Add(1)
-			go lima.DeleteLimaVM(vmName.Name, force, &wg, errCh)
-			// @TODO - Serialize properly
-			time.Sleep(10 * time.Second)
-		}
-
-		// Wait for all goroutines to finish
-		wg.Wait()
-
-		// Close error channel after all goroutines are done
-		close(errCh)
-
-		// Check for any errors reported by the goroutines
-		for err := range errCh {
-			fmt.Println(err)
+		stoppedInstances := lima.GetInstancesByStatus(allInstances, "stopped")
+		if len(allInstances) == len(stoppedInstances) {
+			destroyVM(allInstances, false)
 		}
 	},
 }
@@ -75,4 +66,28 @@ func init() {
 
 	destroyCmd.Flags().StringVarP(&name, "name", "n", "shikari", "name of the cluster")
 	destroyCmd.Flags().BoolVarP(&force, "force", "f", false, "force destruction of the cluster even when VMs are running")
+}
+
+func destroyVM(instances []lima.LimaVM, force bool) {
+	var wg sync.WaitGroup
+	errCh := make(chan error, len(instances))
+
+	// Stop Lima VMs concurrently
+	for i, vmName := range instances {
+		wg.Add(1)
+		fmt.Println("Nth GoRoutine", i)
+		go lima.DeleteLimaVM(vmName.Name, force, &wg, errCh)
+		time.Sleep(2 * time.Second) //delay the goroutine to avoid errors
+	}
+
+	// Wait for all goroutines to finish
+	wg.Wait()
+
+	// Close error channel after all goroutines are done
+	close(errCh)
+
+	// Check for any errors reported by the goroutines
+	for err := range errCh {
+		fmt.Println(err)
+	}
 }
