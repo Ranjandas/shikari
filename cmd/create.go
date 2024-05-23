@@ -94,7 +94,13 @@ func init() {
 func spawnLimaVM(vmName string, modeEnv string, userEnv string, wg *sync.WaitGroup, errCh chan<- error) {
 	defer wg.Done()
 
-	tmpl := fmt.Sprintf("template://%s", template)
+	var tmpl string
+
+	if strings.HasSuffix(strings.ToLower(template), ".yml") || strings.HasSuffix(strings.ToLower(template), ".yaml") {
+		tmpl = template
+	} else {
+		tmpl = fmt.Sprintf("template://%s", template)
+	}
 
 	//--set '. |= .env.mode="server", .env.cluster="murphy"'
 	yqExpression := fmt.Sprintf(`.env.CLUSTER="%s" | .env.MODE="%s"`, name, modeEnv)
