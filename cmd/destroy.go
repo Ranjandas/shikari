@@ -73,9 +73,9 @@ func destroyVM(instances []lima.LimaVM, force bool) {
 	errCh := make(chan error, len(instances))
 
 	// Stop Lima VMs concurrently
-	for i, vmName := range instances {
+	for _, vmName := range instances {
 		wg.Add(1)
-		fmt.Println("Nth GoRoutine", i)
+
 		go lima.DeleteLimaVM(vmName.Name, force, &wg, errCh)
 		time.Sleep(2 * time.Second) //delay the goroutine to avoid errors
 	}
