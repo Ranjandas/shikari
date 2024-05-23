@@ -102,11 +102,15 @@ func StartLimaVM(vmName string, wg *sync.WaitGroup, errCh chan<- error) {
 	fmt.Printf("Lima VM %s started successfully.\n", vmName)
 }
 
-func DeleteLimaVM(vmName string, wg *sync.WaitGroup, errCh chan<- error) {
+func DeleteLimaVM(vmName string, force bool, wg *sync.WaitGroup, errCh chan<- error) {
 	defer wg.Done()
 
-	// Define the command to spawn a Lima VM
-	cmd := exec.Command("limactl", "delete", vmName)
+	cmd := exec.Command("limactl", "delete", "-f", vmName)
+
+	if force {
+		// Force destroy the VMs
+		cmd = exec.Command("limactl", "delete", "-f", vmName)
+	}
 
 	// Set the output to os.Stdout and os.Stderr
 	cmd.Stdout = os.Stdout

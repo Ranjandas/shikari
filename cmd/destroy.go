@@ -40,7 +40,7 @@ var destroyCmd = &cobra.Command{
 		// Stop Lima VMs concurrently
 		for _, vmName := range stoppedInstances {
 			wg.Add(1)
-			go lima.DeleteLimaVM(vmName.Name, &wg, errCh)
+			go lima.DeleteLimaVM(vmName.Name, force, &wg, errCh)
 			// @TODO - Serialize properly
 			time.Sleep(10 * time.Second)
 		}
@@ -58,6 +58,8 @@ var destroyCmd = &cobra.Command{
 	},
 }
 
+var force bool // whether to force delete the vm
+
 func init() {
 	rootCmd.AddCommand(destroyCmd)
 
@@ -70,5 +72,7 @@ func init() {
 	// Cobra supports local flags which will only run when this command
 	// is called directly, e.g.:
 	// destroyCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+
 	destroyCmd.Flags().StringVarP(&name, "name", "n", "shikari", "name of the cluster")
+	destroyCmd.Flags().BoolVarP(&force, "force", "f", false, "force destruction of the cluster even when VMs are running")
 }
