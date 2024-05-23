@@ -105,7 +105,7 @@ func StartLimaVM(vmName string, wg *sync.WaitGroup, errCh chan<- error) {
 func DeleteLimaVM(vmName string, force bool, wg *sync.WaitGroup, errCh chan<- error) {
 	defer wg.Done()
 
-	cmd := exec.Command("limactl", "delete", "-f", vmName)
+	cmd := exec.Command("limactl", "delete", vmName)
 
 	if force {
 		// Force destroy the VMs
