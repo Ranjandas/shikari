@@ -9,7 +9,6 @@ import (
 	"os/exec"
 	"strings"
 	"sync"
-	"time"
 
 	"github.com/spf13/cobra"
 )
@@ -30,26 +29,20 @@ carrying the name as a prefix to easily identify.
 	Run: func(cmd *cobra.Command, args []string) {
 
 		serverVMs := generateServerInstanceNames(name, servers)
+		clientVMs := generateClientInstanceNames(name, clients)
+
+		totalVMs := append(serverVMs, clientVMs...)
 
 		userDefinedEnvs := generateEnvArgs(cmd)
 
 		var wg sync.WaitGroup
-		errCh := make(chan error, len(serverVMs))
+		errCh := make(chan error, len(totalVMs))
 
 		// Spawn Lima VMs concurrently
-		for _, vmName := range serverVMs {
+		for _, vmName := range totalVMs {
 			wg.Add(1)
-			go spawnLimaVM(vmName, "server", userDefinedEnvs, &wg, errCh)
-			// @TODO - Serialize properly
-			time.Sleep(10 * time.Second)
-		}
+			go spawnLimaVM(vmName, getInstanceMode(vmName), userDefinedEnvs, &wg, errCh)
 
-		clientVMs := generateClientInstanceNames(name, clients)
-		for _, vmName := range clientVMs {
-			wg.Add(1)
-			go spawnLimaVM(vmName, "client", userDefinedEnvs, &wg, errCh)
-			// @TODO - Serialize properly
-			time.Sleep(10 * time.Second)
 		}
 
 		// Wait for all goroutines to finish
@@ -103,7 +96,7 @@ func spawnLimaVM(vmName string, modeEnv string, userEnv string, wg *sync.WaitGro
 	}
 
 	//--set '. |= .env.mode="server", .env.cluster="murphy"'
-	yqExpression := fmt.Sprintf(`.env.CLUSTER="%s" | .env.MODE="%s"`, name, modeEnv)
+	yqExpression := fmt.Sprintf(`.env.CLUSTER="%s" | .env.MODE="%s" | .env.BOOTSTRAP_EXPECT="%d"`, name, modeEnv, servers)
 
 	// append user defined environment variable
 	if userEnv != "" {
@@ -172,4 +165,14 @@ func generateEnvArgs(cmd *cobra.Command) string {
 	}
 
 	return strings.Join(envCSV, "| ")
+}
+
+func getInstanceMode(instanceName string) string {
+	mode := "server"
+
+	if strings.HasPrefix(instanceName, fmt.Sprintf("%s-cli-", name)) {
+		mode = "client"
+	}
+
+	return mode
 }
