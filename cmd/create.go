@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"sync"
 
@@ -35,6 +36,22 @@ carrying the name as a prefix to easily identify.
 
 		userDefinedEnvs := generateEnvArgs(cmd)
 
+		// Validate the Image path and type
+		if len(imagePath) > 0 {
+			absolutePath, err := filepath.Abs(imagePath)
+			if err != nil {
+				fmt.Printf("EROR: Cannot find the absolute path of the image: %s", imagePath)
+				return
+			}
+
+			qcow2, _ := isQCOW2(absolutePath)
+
+			if !qcow2 {
+				fmt.Printf("Error: Image %s is not of type qCOW2\n", absolutePath)
+				return
+			}
+		}
+
 		var wg sync.WaitGroup
 		errCh := make(chan error, len(totalVMs))
 
@@ -59,7 +76,7 @@ carrying the name as a prefix to easily identify.
 }
 
 var servers, clients int
-var name, template string
+var name, template, imagePath string
 
 func init() {
 	rootCmd.AddCommand(createCmd)
@@ -76,8 +93,9 @@ func init() {
 	createCmd.Flags().IntVarP(&servers, "servers", "s", 1, "number of servers")
 	createCmd.Flags().IntVarP(&clients, "clients", "c", 1, "number of clients")
 	createCmd.Flags().StringVarP(&name, "name", "n", "shikari", "name of the cluster")
-	createCmd.Flags().StringVarP(&template, "template", "t", "alpine", "name of lima template for the VMs")
+	createCmd.Flags().StringVarP(&template, "template", "t", "./hashibox.yaml", "name of lima template for the VMs")
 	createCmd.Flags().StringSliceP("env", "e", []string{}, "provide environment vars in the for key=value (can be used multiple times)")
+	createCmd.Flags().StringVarP(&imagePath, "image", "i", "", "path to the cqow2 images to be used for the VMs, overriding the one in the template")
 	createCmd.MarkFlagRequired("name")
 	createCmd.MarkFlagRequired("servers")
 	createCmd.MarkFlagRequired("clients")
@@ -101,6 +119,13 @@ func spawnLimaVM(vmName string, modeEnv string, userEnv string, wg *sync.WaitGro
 	// append user defined environment variable
 	if userEnv != "" {
 		yqExpression = fmt.Sprintf("%s | %s", yqExpression, userEnv)
+	}
+
+	// Override the image from the template
+	if len(imagePath) > 0 {
+		absolutePath, _ := filepath.Abs(imagePath)
+		imageArg := fmt.Sprintf(`.images=[{"location": "%s"}]`, absolutePath)
+		yqExpression = fmt.Sprintf("%s | %s", yqExpression, imageArg)
 	}
 
 	// Define the command to spawn a Lima VM
@@ -175,4 +200,28 @@ func getInstanceMode(instanceName string) string {
 	}
 
 	return mode
+}
+
+func isQCOW2(filePath string) (bool, error) {
+	// Open the file
+	file, err := os.Open(filePath)
+	if err != nil {
+		return false, err
+	}
+	defer file.Close()
+
+	// Read the first 4 bytes
+	header := make([]byte, 4)
+	_, err = file.Read(header)
+	if err != nil {
+		return false, err
+	}
+
+	// Check if the header matches the QCOW2 magic number
+	qcow2Magic := []byte{'Q', 'F', 'I', 0xfb}
+	if string(header) == string(qcow2Magic) {
+		return true, nil
+	}
+
+	return false, nil
 }
