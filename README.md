@@ -9,16 +9,25 @@ Various scenarios built for Shikari is available here: https://github.com/Ranjan
 The following are the pre-requisites for using Shikari
 
 * Lima: Used for running VMs
-* QEMU [Optional]: Rrequired if you are also baking images using packer
+* QEMU [Optional]: Required if you are also baking images using packer
 * HashiCorp Packer: To build custom images (available in the shikar-scenarios/packer repository)
 * [socket_vmnet](https://github.com/lima-vm/socket_vmnet): Installed and configured as per Lima [requirements](https://lima-vm.io/docs/config/network/#socket_vmnet)
 * [Shikari Scenarios](https://github.com/Ranjandas/shikari-scenarios/): This is the primary source of various re-usable scenarios to use with Shikari
 
 ## Usage
 
-Shikari can be used to create clusters of any size depdnding on the capacity of the host on which the VMs are provisioned. Shikari under the hood invokes Lima commands to provision VMs. 
+Shikari can be used to create clusters of any size depending on the capacity of the host on which the VMs are provisioned. Shikari under the hood invokes Lima commands to provision VMs. 
 
 The following sub-sections (named after various subcommands) shows how to use Shikari to create, use and destroy clusters.
+
+## Build
+
+Using go build, you can generate an executable binary, allowing you to distribute and deploy the program where you want.
+
+```
+go build
+```
+
 
 ### Create
 

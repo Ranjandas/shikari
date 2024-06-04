@@ -104,7 +104,7 @@ func init() {
 func spawnLimaVM(vmName string, modeEnv string, userEnv string, wg *sync.WaitGroup, errCh chan<- error) {
 	defer wg.Done()
 
-  var tmpl string
+	var tmpl string
 
 	if strings.HasSuffix(strings.ToLower(template), ".yml") || strings.HasSuffix(strings.ToLower(template), ".yaml") {
 		tmpl = template
@@ -128,7 +128,7 @@ func spawnLimaVM(vmName string, modeEnv string, userEnv string, wg *sync.WaitGro
 	}
 
 	// Define the command to spawn a Lima VM
-	limaCmd := fmt.Sprintf("limactl start --name %s %s --tty=false --set '%s'", vmName, template, yqExpression)
+	limaCmd := fmt.Sprintf("limactl start --name %s %s --tty=false --set '%s'", vmName, tmpl, yqExpression)
 	cmd := exec.Command("/bin/sh", "-c", limaCmd)
 
 	// Set the output to os.Stdout and os.Stderr
