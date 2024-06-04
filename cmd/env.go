@@ -37,19 +37,10 @@ export CONSUL_HTTP_ADDR=http://x.x.x.x:xxxx`,
 func init() {
 	rootCmd.AddCommand(envCmd)
 
-	// Here you will define your flags and configuration settings.
-
-	// Cobra supports Persistent Flags which will work for this command
-	// and all subcommands, e.g.:
-	// envCmd.PersistentFlags().String("foo", "", "A help for foo")
-
-	// Cobra supports local flags which will only run when this command
-	// is called directly, e.g.:
-	// envCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
-
 	envCmd.Flags().StringVarP(&clientConfigOpts.Name, "name", "n", "", "name of the cluster")
-	envCmd.Flags().BoolVarP(&clientConfigOpts.ACL, "acl", "", false, "prints the ACL token variables")
-	envCmd.Flags().BoolVarP(&clientConfigOpts.TLS, "tls", "", false, "prints the TLS variables")
+	envCmd.Flags().BoolVarP(&clientConfigOpts.ACL, "acl", "a", false, "prints the ACL token variables")
+	envCmd.Flags().BoolVarP(&clientConfigOpts.TLS, "tls", "t", false, "prints the TLS variables")
+	envCmd.Flags().BoolVarP(&clientConfigOpts.Insecure, "insecure", "i", false, "prints the skip TLS Verify variables")
 }
 
 type AddrInfo struct {
@@ -64,9 +55,10 @@ type Interface struct {
 }
 
 type ClientConfigOpts struct {
-	Name string
-	TLS  bool
-	ACL  bool
+	Name     string
+	TLS      bool
+	ACL      bool
+	Insecure bool
 }
 
 var clientConfigOpts ClientConfigOpts
@@ -134,14 +126,21 @@ func consulVariables(config ClientConfigOpts, addr string) string {
 	consulHTTPAddr := fmt.Sprintf("%s%s:%d", scheme, addr, port)
 
 	// env-variable=value
-	consulHTTPAddrVar := fmt.Sprintf("CONSUL_HTTP_ADDR=%s", consulHTTPAddr)
-	consulTokenVar := fmt.Sprintf("CONSUL_HTTP_TOKEN=%s", bootstrapToken)
+	httpAddrVar := fmt.Sprintf("export CONSUL_HTTP_ADDR=%s", consulHTTPAddr)
+	tokenVar := fmt.Sprintf("export CONSUL_HTTP_TOKEN=%s", bootstrapToken)
+	insecureTLSVar := "export CONSUL_HTTP_SSL_VERIFY=false"
 
-	if !config.ACL {
-		return consulHTTPAddrVar
+	combinedVars := httpAddrVar
+
+	if config.ACL {
+		combinedVars = strings.Join([]string{httpAddrVar, tokenVar}, "\n")
 	}
 
-	return strings.Join([]string{consulHTTPAddrVar, consulTokenVar}, "\n")
+	if config.Insecure {
+		combinedVars = strings.Join([]string{combinedVars, insecureTLSVar}, "\n")
+	}
+
+	return combinedVars
 }
 
 func nomadVariables(config ClientConfigOpts, addr string) string {
@@ -157,12 +156,19 @@ func nomadVariables(config ClientConfigOpts, addr string) string {
 	consulHTTPAddr := fmt.Sprintf("%s%s:%d", scheme, addr, port)
 
 	// env-variable=value
-	consulHTTPAddrVar := fmt.Sprintf("CONSUL_HTTP_ADDR=%s", consulHTTPAddr)
-	consulTokenVar := fmt.Sprintf("CONSUL_HTTP_TOKEN=%s", bootstrapToken)
+	httpAddrVar := fmt.Sprintf("export NOMAD_ADDR=%s", consulHTTPAddr)
+	tokenVar := fmt.Sprintf("export NOMAD_TOKEN=%s", bootstrapToken)
+	insecureTLSVar := "export NOMAD_SKIP_VERIFY=true"
 
-	if !config.ACL {
-		return consulHTTPAddrVar
+	combinedVars := httpAddrVar
+
+	if config.ACL {
+		combinedVars = strings.Join([]string{httpAddrVar, tokenVar}, "\n")
 	}
 
-	return strings.Join([]string{consulHTTPAddrVar, consulTokenVar}, "\n")
+	if config.Insecure {
+		combinedVars = strings.Join([]string{combinedVars, insecureTLSVar}, "\n")
+	}
+
+	return combinedVars
 }
