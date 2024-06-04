@@ -81,20 +81,19 @@ func init() {
 	// is called directly, e.g.:
 	// createCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
 	createCmd.Flags().IntVarP(&servers, "servers", "s", 1, "number of servers")
-	createCmd.Flags().IntVarP(&clients, "clients", "c", 1, "number of clients")
+	createCmd.Flags().IntVarP(&clients, "clients", "c", 0, "number of clients")
 	createCmd.Flags().StringVarP(&name, "name", "n", "shikari", "name of the cluster")
 	createCmd.Flags().StringVarP(&template, "template", "t", "alpine", "name of lima template for the VMs")
 	createCmd.Flags().StringSliceP("env", "e", []string{}, "provide environment vars in the for key=value (can be used multiple times)")
 	createCmd.MarkFlagRequired("name")
 	createCmd.MarkFlagRequired("servers")
-	createCmd.MarkFlagRequired("clients")
 
 }
 
 func spawnLimaVM(vmName string, modeEnv string, userEnv string, wg *sync.WaitGroup, errCh chan<- error) {
 	defer wg.Done()
 
-	tmpl := fmt.Sprintf("template://%s", template)
+	//tmpl := fmt.Sprintf("template://%s", template)
 
 	//--set '. |= .env.mode="server", .env.cluster="murphy"'
 	yqExpression := fmt.Sprintf(`.env.CLUSTER="%s" | .env.MODE="%s"`, name, modeEnv)
@@ -105,7 +104,7 @@ func spawnLimaVM(vmName string, modeEnv string, userEnv string, wg *sync.WaitGro
 	}
 
 	// Define the command to spawn a Lima VM
-	limaCmd := fmt.Sprintf("limactl start --name %s %s --tty=false --set '%s'", vmName, tmpl, yqExpression)
+	limaCmd := fmt.Sprintf("limactl start --name %s %s --tty=false --set '%s'", vmName, template, yqExpression)
 	cmd := exec.Command("/bin/sh", "-c", limaCmd)
 
 	// Set the output to os.Stdout and os.Stderr
