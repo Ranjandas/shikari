@@ -15,8 +15,11 @@ limitations under the License.
 */
 package main
 
-import "github.com/ranjandas/shikari/cmd"
+import (
+	"github.com/ranjandas/shikari/cmd"
+)
 
 func main() {
+	cmd.Version = version
 	cmd.Execute()
 }
