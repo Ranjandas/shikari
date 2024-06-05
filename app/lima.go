@@ -11,11 +11,6 @@ import (
 	"sync"
 )
 
-type LimaVM struct {
-	Name   string `json:"name"`
-	Status string `json:"status"`
-}
-
 func ListInstances() []LimaVM {
 	cmd := exec.Command("limactl", "list", "--json")
 
