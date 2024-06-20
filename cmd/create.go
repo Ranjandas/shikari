@@ -91,15 +91,13 @@ func init() {
 	// is called directly, e.g.:
 	// createCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
 	createCmd.Flags().IntVarP(&servers, "servers", "s", 1, "number of servers")
-	createCmd.Flags().IntVarP(&clients, "clients", "c", 1, "number of clients")
+	createCmd.Flags().IntVarP(&clients, "clients", "c", 0, "number of clients")
 	createCmd.Flags().StringVarP(&name, "name", "n", "shikari", "name of the cluster")
 	createCmd.Flags().StringVarP(&template, "template", "t", "./hashibox.yaml", "name of lima template for the VMs")
 	createCmd.Flags().StringSliceP("env", "e", []string{}, "provide environment vars in the for key=value (can be used multiple times)")
 	createCmd.Flags().StringVarP(&imagePath, "image", "i", "", "path to the cqow2 images to be used for the VMs, overriding the one in the template")
 	createCmd.MarkFlagRequired("name")
 	createCmd.MarkFlagRequired("servers")
-	createCmd.MarkFlagRequired("clients")
-
 }
 
 func spawnLimaVM(vmName string, modeEnv string, userEnv string, wg *sync.WaitGroup, errCh chan<- error) {
