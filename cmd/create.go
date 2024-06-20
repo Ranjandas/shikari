@@ -113,8 +113,12 @@ func spawnLimaVM(vmName string, modeEnv string, userEnv string, wg *sync.WaitGro
 		tmpl = fmt.Sprintf("template://%s", template)
 	}
 
-	//--set '. |= .env.mode="server", .env.cluster="murphy"'
-	yqExpression := fmt.Sprintf(`.env.CLUSTER="%s" | .env.MODE="%s" | .env.BOOTSTRAP_EXPECT="%d"`, name, modeEnv, servers)
+	// example: --set '. |= .env.SHIKARI_VM_MODE="server", .env.SHIKARI_CLUSTER_NAME="murphy"'
+	yqExpression := fmt.Sprintf(`.env.SHIKARI_CLUSTER_NAME="%s" | .env.SHIKARI_VM_MODE="%s"`, name, modeEnv)
+
+	// append server and client count variables
+	countEnvVars := fmt.Sprintf(`.env.SHIKARI_SERVER_COUNT="%d" | .env.SHIKARI_CLIENT_COUNT="%d"`, servers, clients)
+	yqExpression = fmt.Sprintf("%s |  %s", yqExpression, countEnvVars)
 
 	// append user defined environment variable
 	if userEnv != "" {
