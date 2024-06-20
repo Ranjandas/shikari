@@ -62,9 +62,12 @@ murphy-srv-03    Running    127.0.0.1:62279    qemu      4       4GiB      100Gi
 
 When spinning up the VM's, Shikari injects a few environment variables into each VM's, which would give some additional context to the provisioning scripts that would include:
 
-* What kind of node the script is running on (injected as `MODE` env variable)
-* Name of the cluster (injected as `CLUSTER` env variable)
-* Count of Number of Servers (injected as `BOOTSTRAP_EXPECT` env variable)
+* What kind of node the script is running on (injected as `SHIKARI_VM_MODE` env variable)
+* Name of the cluster (injected as `SHIKARI_CLUSTER_NAME` env variable)
+* Count of Number of Servers (injected as `SHIKARI_SERVER_COUNT` env variable)
+* Count of Number of Clients (injected as `SHIKARI_CLIENT_COUNT` env variable)
+
+> NOTE: The variables are prefixed with `SHIKARI_` from `v0.3.0`. Please refer to the specific version doc to find the right variables.
 
 > NOTE: Please open GH [issues](https://github.com/Ranjandas/shikari/issues) if you would like to have additional variables injected.
 
