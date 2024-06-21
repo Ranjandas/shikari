@@ -12,7 +12,7 @@ import (
 	"os/exec"
 	"strings"
 
-	lima "github.com/ranjandas/shikari/app"
+	lima "github.com/ranjandas/shikari/app/lima"
 	"github.com/spf13/cobra"
 )
 

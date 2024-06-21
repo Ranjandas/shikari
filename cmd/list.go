@@ -10,7 +10,7 @@ import (
 	"strings"
 	"text/tabwriter"
 
-	lima "github.com/ranjandas/shikari/app"
+	lima "github.com/ranjandas/shikari/app/lima"
 	"github.com/spf13/cobra"
 )
 
@@ -20,16 +20,14 @@ var listCmd = &cobra.Command{
 	Short: "List VMs belonging to clusters",
 	Long:  `List VMs belonging to clusters`,
 	Run: func(cmd *cobra.Command, args []string) {
-
-		name, _ := cmd.Flags().GetString("name")
-		listInstances(name)
+		listInstances(cluster.Name)
 	},
 }
 
 func init() {
 	rootCmd.AddCommand(listCmd)
 
-	listCmd.Flags().StringP("name", "n", "", "name of the  cluster")
+	listCmd.Flags().StringVarP(&cluster.Name, "name", "n", "", "name of the  cluster")
 	listCmd.Flags().BoolVarP(&header, "no-header", "", false, "skip the header from list output")
 }
 
@@ -47,7 +45,7 @@ func listInstances(clusterName string) {
 	for _, vm := range vms {
 		if isShikariVM(vm.Name) {
 
-			if len(name) > 0 {
+			if len(vm.Name) > 0 {
 				if !strings.HasPrefix(vm.Name, clusterName) {
 					continue //skip printing the
 				}

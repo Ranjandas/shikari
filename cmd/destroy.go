@@ -8,7 +8,7 @@ import (
 	"sync"
 	"time"
 
-	lima "github.com/ranjandas/shikari/app"
+	lima "github.com/ranjandas/shikari/app/lima"
 	"github.com/spf13/cobra"
 )
 
@@ -24,10 +24,10 @@ var destroyCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		//fmt.Println("destroy called")
 
-		allInstances := lima.GetInstancesByPrefix(name)
+		allInstances := lima.GetInstancesByPrefix(cluster.Name)
 
 		if len(allInstances) == 0 {
-			fmt.Printf("No instances in the cluster %s\n", name)
+			fmt.Printf("No instances in the cluster %s\n", cluster.Name)
 			return
 		}
 
@@ -64,7 +64,7 @@ func init() {
 	// is called directly, e.g.:
 	// destroyCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
 
-	destroyCmd.Flags().StringVarP(&name, "name", "n", "shikari", "name of the cluster")
+	destroyCmd.Flags().StringVarP(&cluster.Name, "name", "n", "", "name of the cluster")
 	destroyCmd.Flags().BoolVarP(&force, "force", "f", false, "force destruction of the cluster even when VMs are running")
 }
 
