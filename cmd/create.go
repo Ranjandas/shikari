@@ -28,7 +28,7 @@ carrying the name as a prefix to easily identify.
 			fmt.Printf("Cluster %s alredy exist!", cluster.Name)
 			return
 		}
-		cluster.CreateCluster(false)
+		cluster.CreateCluster(false, false)
 	},
 }
 

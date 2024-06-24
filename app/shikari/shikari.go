@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"time"
 
 	lima "github.com/ranjandas/shikari/app/lima"
 )
@@ -29,107 +30,149 @@ func (c ShikariCluster) GetCurrentVMCount() (uint8, uint8) {
 	return serverCount, clientCount
 }
 
-func (c ShikariCluster) CreateCluster(scale bool) {
+func (c ShikariCluster) CreateCluster(scale bool, force bool) {
 
 	serverCount, clientCount := c.GetCurrentVMCount()
 
 	var serverVMs, clientVMs []string
+	var vmsToCreate, vmsToDestroy []string
+	var serverScaleDown, clientScaleDown bool
 
 	if scale {
+		// If request > existing count, generate server instance name from the existing count
 		if c.NumServers > serverCount {
-			serverVMs = c.generateServerInstanceNames(int(serverCount) + 1)
+			serverVMs = c.generateServerInstanceNames(int(serverCount)+1, int(c.NumServers))
+			vmsToCreate = append(vmsToCreate, serverVMs...)
+		}
+
+		if c.NumServers < serverCount && c.NumServers != 0 {
+			serverVMs = c.generateServerInstanceNames(int(c.NumServers)+1, int(serverCount))
+			serverScaleDown = true
+			vmsToDestroy = append(vmsToDestroy, serverVMs...)
 		}
 
 		if c.NumClients > clientCount {
-			clientVMs = c.generateClientInstanceNames(int(clientCount) + 1)
+			clientVMs = c.generateClientInstanceNames(int(clientCount)+1, int(c.NumClients))
+			vmsToCreate = append(vmsToCreate, clientVMs...)
+		}
+
+		if c.NumClients < clientCount && c.NumClients != 0 {
+			clientVMs = c.generateClientInstanceNames(int(c.NumClients)+1, int(clientCount))
+			vmsToDestroy = append(vmsToDestroy, clientVMs...)
+			clientScaleDown = true
+		}
+
+		if (clientScaleDown || serverScaleDown) && !force {
+			fmt.Println("The following VMs", strings.Join(vmsToDestroy, ","), "will have to be destroyed. Rerun the command with -f to force the scale down!")
+			return
 		}
 	} else {
 		// start index from 1 if not a scaling request
-		serverVMs = c.generateServerInstanceNames(1)
-		clientVMs = c.generateClientInstanceNames(1)
+		serverVMs = c.generateServerInstanceNames(1, int(c.NumServers))
+		clientVMs = c.generateClientInstanceNames(1, int(c.NumClients))
+		vmsToCreate = append(vmsToCreate, serverVMs...)
+		vmsToCreate = append(vmsToCreate, clientVMs...)
 	}
-
-	fmt.Println(serverVMs, clientVMs)
-
-	totalVMs := append(serverVMs, clientVMs...)
 
 	userDefinedEnvs := c.generateEnvArgs()
 
-	// Validate the Image path and type
-	if len(c.ImgPath) > 0 {
-		absolutePath, err := filepath.Abs(c.ImgPath)
-		if err != nil {
-			fmt.Printf("EROR: Cannot find the absolute path of the image: %s", c.ImgPath)
-			return
+	if len(vmsToCreate) > 0 {
+		if len(c.ImgPath) > 0 {
+			absolutePath, err := filepath.Abs(c.ImgPath)
+			if err != nil {
+				fmt.Printf("EROR: Cannot find the absolute path of the image: %s", c.ImgPath)
+				return
+			}
+
+			qcow2, _ := isQCOW2(absolutePath)
+
+			if !qcow2 {
+				fmt.Printf("Error: Image %s is not of type qCOW2\n", absolutePath)
+				return
+			}
 		}
 
-		qcow2, _ := isQCOW2(absolutePath)
+		var wg sync.WaitGroup
+		errCh := make(chan error, len(vmsToCreate))
 
-		if !qcow2 {
-			fmt.Printf("Error: Image %s is not of type qCOW2\n", absolutePath)
-			return
+		var tmpl string
+
+		if strings.HasSuffix(strings.ToLower(c.Template), ".yml") || strings.HasSuffix(strings.ToLower(c.Template), ".yaml") {
+			tmpl = c.Template
+		} else {
+			tmpl = fmt.Sprintf("template://%s", c.Template)
+		}
+
+		// // example: --set '. |= .env.SHIKARI_VM_MODE="server", .env.SHIKARI_CLUSTER_NAME="murphy"'
+		yqExpression := fmt.Sprintf(`.env.SHIKARI_CLUSTER_NAME="%s"`, c.Name)
+
+		// | .env.SHIKARI_VM_MODE="%s"
+
+		// // append server and client count variables
+		countEnvVars := fmt.Sprintf(`.env.SHIKARI_SERVER_COUNT="%d" | .env.SHIKARI_CLIENT_COUNT="%d"`, c.NumServers, c.NumClients)
+		yqExpression = fmt.Sprintf("%s |  %s", yqExpression, countEnvVars)
+
+		// // append user defined environment variable
+		if userDefinedEnvs != "" {
+			yqExpression = fmt.Sprintf("%s | %s", yqExpression, userDefinedEnvs)
+		}
+
+		// // Override the image from the template
+		if len(c.ImgPath) > 0 {
+			absolutePath, _ := filepath.Abs(c.ImgPath)
+			imageArg := fmt.Sprintf(`.images=[{"location": "%s"}]`, absolutePath)
+			yqExpression = fmt.Sprintf("%s | %s", yqExpression, imageArg)
+		}
+
+		// Spawn Lima VMs concurrently
+		for _, vmName := range vmsToCreate {
+			wg.Add(1)
+			yqExpr := fmt.Sprintf(`%s | .env.SHIKARI_VM_MODE="%s"`, yqExpression, c.getInstanceMode(vmName))
+
+			go lima.SpawnLimaVM(vmName, tmpl, yqExpr, &wg, errCh)
+			yqExpr = ""
+
+		}
+
+		// Wait for all goroutines to finish
+		wg.Wait()
+
+		// Close error channel after all goroutines are done
+		close(errCh)
+
+		// Check for any errors reported by the goroutines
+		for err := range errCh {
+			fmt.Println(err)
+		}
+	}
+	if len(vmsToDestroy) > 0 {
+		var wg sync.WaitGroup
+		errCh := make(chan error, len(vmsToDestroy))
+
+		for _, vmName := range vmsToDestroy {
+			wg.Add(1)
+			go lima.DeleteLimaVM(vmName, force, &wg, errCh)
+			time.Sleep(2 * time.Second)
+		}
+		// Wait for all goroutines to finish
+		wg.Wait()
+
+		// Close error channel after all goroutines are done
+		close(errCh)
+
+		// Check for any errors reported by the goroutines
+		for err := range errCh {
+			fmt.Println(err)
 		}
 	}
 
-	var wg sync.WaitGroup
-	errCh := make(chan error, len(totalVMs))
-
-	var tmpl string
-
-	if strings.HasSuffix(strings.ToLower(c.Template), ".yml") || strings.HasSuffix(strings.ToLower(c.Template), ".yaml") {
-		tmpl = c.Template
-	} else {
-		tmpl = fmt.Sprintf("template://%s", c.Template)
-	}
-
-	// // example: --set '. |= .env.SHIKARI_VM_MODE="server", .env.SHIKARI_CLUSTER_NAME="murphy"'
-	yqExpression := fmt.Sprintf(`.env.SHIKARI_CLUSTER_NAME="%s"`, c.Name)
-
-	// | .env.SHIKARI_VM_MODE="%s"
-
-	// // append server and client count variables
-	countEnvVars := fmt.Sprintf(`.env.SHIKARI_SERVER_COUNT="%d" | .env.SHIKARI_CLIENT_COUNT="%d"`, c.NumServers, c.NumClients)
-	yqExpression = fmt.Sprintf("%s |  %s", yqExpression, countEnvVars)
-
-	// // append user defined environment variable
-	if userDefinedEnvs != "" {
-		yqExpression = fmt.Sprintf("%s | %s", yqExpression, userDefinedEnvs)
-	}
-
-	// // Override the image from the template
-	if len(c.ImgPath) > 0 {
-		absolutePath, _ := filepath.Abs(c.ImgPath)
-		imageArg := fmt.Sprintf(`.images=[{"location": "%s"}]`, absolutePath)
-		yqExpression = fmt.Sprintf("%s | %s", yqExpression, imageArg)
-	}
-
-	// Spawn Lima VMs concurrently
-	for _, vmName := range totalVMs {
-		wg.Add(1)
-		yqExpr := fmt.Sprintf(`%s | .env.SHIKARI_VM_MODE="%s"`, yqExpression, c.getInstanceMode(vmName))
-
-		go lima.SpawnLimaVM(vmName, tmpl, yqExpr, &wg, errCh)
-		yqExpr = ""
-
-	}
-
-	// Wait for all goroutines to finish
-	wg.Wait()
-
-	// Close error channel after all goroutines are done
-	close(errCh)
-
-	// Check for any errors reported by the goroutines
-	for err := range errCh {
-		fmt.Println(err)
-	}
 }
 
-func (c ShikariCluster) generateServerInstanceNames(step int) []string {
+func (c ShikariCluster) generateServerInstanceNames(start int, end int) []string {
 
 	s := make([]string, 0)
 
-	for n := step; n <= int(c.NumServers); n++ {
+	for n := start; n <= end; n++ {
 		name := fmt.Sprintf("%s-srv-%02d", c.Name, n)
 
 		s = append(s, name)
@@ -137,11 +180,11 @@ func (c ShikariCluster) generateServerInstanceNames(step int) []string {
 	return s
 }
 
-func (c ShikariCluster) generateClientInstanceNames(step int) []string {
+func (c ShikariCluster) generateClientInstanceNames(start int, end int) []string {
 
 	s := make([]string, 0)
 
-	for n := step; n <= int(c.NumClients); n++ {
+	for n := start; n <= end; n++ {
 		name := fmt.Sprintf("%s-cli-%02d", c.Name, n)
 
 		s = append(s, name)
