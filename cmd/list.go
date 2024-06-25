@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"regexp"
+	"runtime"
 	"strings"
 	"text/tabwriter"
 
@@ -39,7 +40,7 @@ func listInstances(clusterName string) {
 	w := tabwriter.NewWriter(os.Stdout, 5, 3, 7, byte(' '), 0)
 
 	if !header {
-		fmt.Fprintln(w, "CLUSTER\tVM NAME\tSATUS\tDISK(GB)\tMEMORY(GB)\tCPUS")
+		fmt.Fprintln(w, "CLUSTER\tVM NAME\tSATUS\tDISK(GB)\tMEMORY(GB)\tCPUS\tIMAGE")
 	}
 
 	for _, vm := range vms {
@@ -50,10 +51,29 @@ func listInstances(clusterName string) {
 					continue //skip printing the
 				}
 			}
-			fmt.Fprintf(w, "%s\t%s\t%s\t%d\t%d\t%d\n", getClusterNameFromInstanceName(vm.Name), vm.Name, vm.Status, bytesToGiB(vm.Disk), bytesToGiB(vm.Memory), vm.Cpus)
+			fmt.Fprintf(w, "%s\t%s\t%s\t%d\t%d\t%d\t%s\n", getClusterNameFromInstanceName(vm.Name), vm.Name, vm.Status, bytesToGiB(vm.Disk), bytesToGiB(vm.Memory), vm.Cpus, getImageLocation(vm.Config.Images))
 		}
 	}
 	w.Flush()
+}
+
+func getImageLocation(images []map[string]string) string {
+
+	var arch, location string
+
+	switch runtime.GOARCH {
+	case "arm64":
+		arch = "aarch64"
+	case "amd64":
+		arch = "x86_64"
+	}
+
+	for _, image := range images {
+		if image["arch"] == arch {
+			location = image["location"]
+		}
+	}
+	return location
 }
 
 func getClusterNameFromInstanceName(name string) string {
