@@ -39,5 +39,5 @@ func init() {
 	scaleCmd.Flags().StringVarP(&cluster.ImgPath, "image", "i", "", "path to the cqow2 images to be used for the VMs, overriding the one in the template")
 	scaleCmd.Flags().BoolVarP(&cluster.Force, "force", "f", false, "force scaling down of the cluster VMs")
 	scaleCmd.MarkFlagRequired("name")
-	scaleCmd.MarkFlagRequired("clients")
+	scaleCmd.MarkFlagsOneRequired("clients", "servers")
 }
