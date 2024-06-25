@@ -22,15 +22,15 @@ var envCmd = &cobra.Command{
 	Short: "Prints client config environment variables",
 	Long: `Prints client config environment variables.
 For example:
-
-export CONSUL_HTTP_TOKEN=xxxxx
-export CONSUL_HTTP_ADDR=http://x.x.x.x:xxxx`,
+shikari env -n murphy -tai consul
+export CONSUL_HTTP_ADDR=https://xxx.xxx
+export CONSUL_HTTP_TOKEN=xxx
+export CONSUL_HTTP_SSL_VERIFY=false`,
 	Run: func(cmd *cobra.Command, args []string) {
 
-		if clientConfigOpts.Name != "" {
-			printClientConfigEnvs(clientConfigOpts)
+		if len(args) > 0 && clientConfigOpts.Name != "" {
+			clientConfigOpts.printClientConfigEnvs(args[0])
 		}
-
 	},
 }
 
@@ -41,6 +41,7 @@ func init() {
 	envCmd.Flags().BoolVarP(&clientConfigOpts.ACL, "acl", "a", false, "prints the ACL token variables")
 	envCmd.Flags().BoolVarP(&clientConfigOpts.TLS, "tls", "t", false, "prints the TLS variables")
 	envCmd.Flags().BoolVarP(&clientConfigOpts.Insecure, "insecure", "i", false, "prints the skip TLS Verify variables")
+	envCmd.Flags().BoolVarP(&clientConfigOpts.Unset, "unset", "u", false, "unset the variables insetad of export")
 }
 
 type AddrInfo struct {
@@ -59,21 +60,23 @@ type ClientConfigOpts struct {
 	TLS      bool
 	ACL      bool
 	Insecure bool
+	Unset    bool
 }
 
 var clientConfigOpts ClientConfigOpts
 
-func printClientConfigEnvs(config ClientConfigOpts) {
-
-	ipAddress := getIPAddress(getRandomServer(config))
-
-	fmt.Println(consulVariables(config, ipAddress))
-	fmt.Println(nomadVariables(config, ipAddress))
+func (c ClientConfigOpts) printClientConfigEnvs(product string) {
+	switch product {
+	case "consul":
+		fmt.Println(c.getConsulVariables())
+	case "nomad":
+		fmt.Println(c.getNomadVariables())
+	}
 }
 
-func getRandomServer(config ClientConfigOpts) string {
+func (c ClientConfigOpts) getRandomServer() string {
 	// always get the instances of type server "-srv"
-	instances := lima.GetInstancesByPrefix(fmt.Sprintf("%s-srv", config.Name))
+	instances := lima.GetInstancesByPrefix(fmt.Sprintf("%s-srv", c.Name))
 	runningInstances := lima.GetInstancesByStatus(instances, "running")
 
 	if !(len(runningInstances) > 0) {
@@ -113,13 +116,18 @@ func getIPAddress(srvName string) string {
 	return ""
 }
 
-func consulVariables(config ClientConfigOpts, addr string) string {
+func (c ClientConfigOpts) getConsulVariables() string {
 
+	if c.Unset {
+		return "unset CONSUL_HTTP_ADDR\nunset CONSUL_HTTP_TOKEN\nunset CONSUL_HTTP_SSL_VERIFY"
+	}
+
+	addr := getIPAddress(c.getRandomServer())
 	scheme := "http://"
 	port := 8500
 	bootstrapToken := "root" // consul bootstrap token
 
-	if config.TLS {
+	if c.TLS {
 		scheme = "https://"
 		port = 8501
 	}
@@ -133,24 +141,29 @@ func consulVariables(config ClientConfigOpts, addr string) string {
 
 	combinedVars := httpAddrVar
 
-	if config.ACL {
+	if c.ACL {
 		combinedVars = strings.Join([]string{httpAddrVar, tokenVar}, "\n")
 	}
 
-	if config.Insecure {
+	if c.Insecure {
 		combinedVars = strings.Join([]string{combinedVars, insecureTLSVar}, "\n")
 	}
 
 	return combinedVars
 }
 
-func nomadVariables(config ClientConfigOpts, addr string) string {
+func (c ClientConfigOpts) getNomadVariables() string {
 
+	if c.Unset {
+		return "unset NOMAD_ADDR\nunset NOMAD_TOKEN\nunset NOMAD_SKIP_VERIFY"
+	}
+
+	addr := getIPAddress(c.getRandomServer())
 	scheme := "http://"
 	port := 4646
 	bootstrapToken := "00000000-0000-0000-0000-000000000000" // consul bootstrap token
 
-	if config.TLS {
+	if c.TLS {
 		scheme = "https://"
 	}
 
@@ -163,11 +176,11 @@ func nomadVariables(config ClientConfigOpts, addr string) string {
 
 	combinedVars := httpAddrVar
 
-	if config.ACL {
+	if c.ACL {
 		combinedVars = strings.Join([]string{httpAddrVar, tokenVar}, "\n")
 	}
 
-	if config.Insecure {
+	if c.Insecure {
 		combinedVars = strings.Join([]string{combinedVars, insecureTLSVar}, "\n")
 	}
 
