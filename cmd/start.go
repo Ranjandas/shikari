@@ -8,7 +8,7 @@ import (
 	"sync"
 	"time"
 
-	lima "github.com/ranjandas/shikari/app"
+	lima "github.com/ranjandas/shikari/app/lima"
 	"github.com/spf13/cobra"
 )
 
@@ -23,11 +23,11 @@ Exmple:
 $ shikari start -n murphy`,
 	Run: func(cmd *cobra.Command, args []string) {
 		//fmt.Println("start called")
-		instances := lima.GetInstancesByPrefix(name)
+		instances := lima.GetInstancesByPrefix(cluster.Name)
 		stoppedInstances := lima.GetInstancesByStatus(instances, "stopped")
 
 		if len(stoppedInstances) == 0 {
-			fmt.Printf("No stopped instances in the %s cluster to start.\n", name)
+			fmt.Printf("No stopped instances in the %s cluster to start.\n", cluster.Name)
 			return
 		}
 
@@ -58,16 +58,7 @@ $ shikari start -n murphy`,
 func init() {
 	rootCmd.AddCommand(startCmd)
 
-	// Here you will define your flags and configuration settings.
-
-	// Cobra supports Persistent Flags which will work for this command
-	// and all subcommands, e.g.:
-	// startCmd.PersistentFlags().String("foo", "", "A help for foo")
-
-	// Cobra supports local flags which will only run when this command
-	// is called directly, e.g.:
-	// startCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
-	startCmd.Flags().StringVarP(&name, "name", "n", "shikari", "name of the cluster")
+	startCmd.Flags().StringVarP(&cluster.Name, "name", "n", "", "name of the cluster")
 	startCmd.MarkFlagRequired("name")
 
 }

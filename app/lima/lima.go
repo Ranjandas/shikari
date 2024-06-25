@@ -39,7 +39,7 @@ func GetInstancesByPrefix(name string) []LimaVM {
 	instances := ListInstances()
 
 	for _, instance := range instances {
-		if strings.HasPrefix(instance.Name, name) {
+		if strings.HasPrefix(instance.Name, fmt.Sprintf("%s-", name)) {
 			filteredInstances = append(filteredInstances, instance)
 		}
 	}
@@ -135,4 +135,24 @@ func ExecLimaVM(vmName string, command string) {
 		fmt.Printf("error executing command against VM %s: %v\n", vmName, err)
 		return
 	}
+}
+
+func SpawnLimaVM(vmName string, tmpl string, yqExpression string, wg *sync.WaitGroup, errCh chan<- error) {
+	defer wg.Done()
+
+	// Define the command to spawn a Lima VM
+	limaCmd := fmt.Sprintf("limactl start --name %s %s --tty=false --set '%s'", vmName, tmpl, yqExpression)
+	cmd := exec.Command("/bin/sh", "-c", limaCmd)
+
+	// Set the output to os.Stdout and os.Stderr
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	// Run the command
+	if err := cmd.Run(); err != nil {
+		errCh <- fmt.Errorf("error spawning Lima VM %s: %w", vmName, err)
+		return
+	}
+
+	fmt.Printf("Lima VM %s spawned successfully.\n", vmName)
 }

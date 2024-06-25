@@ -8,7 +8,7 @@ import (
 	"os"
 	"strings"
 
-	lima "github.com/ranjandas/shikari/app"
+	lima "github.com/ranjandas/shikari/app/lima"
 	"github.com/spf13/cobra"
 )
 
@@ -82,15 +82,6 @@ You can run commands against specific class of servers (clients, servers or all)
 func init() {
 	rootCmd.AddCommand(execCmd)
 
-	// Here you will define your flags and configuration settings.
-
-	// Cobra supports Persistent Flags which will work for this command
-	// and all subcommands, e.g.:
-	// execCmd.PersistentFlags().String("foo", "", "A help for foo")
-
-	// Cobra supports local flags which will only run when this command
-	// is called directly, e.g.:
-	// execCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
 	execCmd.Flags().BoolP("clients", "c", false, "run commands against client instances in the cluster")
 	execCmd.Flags().BoolP("servers", "s", false, "run commands against server instances in the cluster")
 	execCmd.Flags().BoolP("all", "a", false, "run commands against all instances in the cluster")
