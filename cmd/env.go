@@ -72,7 +72,8 @@ func printClientConfigEnvs(config ClientConfigOpts) {
 }
 
 func getRandomServer(config ClientConfigOpts) string {
-	instances := lima.GetInstancesByPrefix(config.Name)
+	// always get the instances of type server "-srv"
+	instances := lima.GetInstancesByPrefix(fmt.Sprintf("%s-srv", config.Name))
 	runningInstances := lima.GetInstancesByStatus(instances, "running")
 
 	if !(len(runningInstances) > 0) {
