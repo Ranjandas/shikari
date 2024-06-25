@@ -22,7 +22,7 @@ var scaleCmd = &cobra.Command{
 			return
 		}
 
-		cluster.CreateCluster(true, force)
+		cluster.CreateCluster(true)
 	},
 }
 
@@ -37,7 +37,7 @@ func init() {
 	scaleCmd.Flags().StringVarP(&cluster.Template, "template", "t", "./hashibox.yaml", "name of lima template for the VMs")
 	scaleCmd.Flags().StringSliceVarP(&cluster.EnvVars, "env", "e", []string{}, "provide environment vars in the for key=value (can be used multiple times)")
 	scaleCmd.Flags().StringVarP(&cluster.ImgPath, "image", "i", "", "path to the cqow2 images to be used for the VMs, overriding the one in the template")
-	scaleCmd.Flags().BoolVarP(&force, "force", "f", false, "force scaling down of the cluster VMs")
+	scaleCmd.Flags().BoolVarP(&cluster.Force, "force", "f", false, "force scaling down of the cluster VMs")
 	scaleCmd.MarkFlagRequired("name")
 	scaleCmd.MarkFlagRequired("clients")
 }

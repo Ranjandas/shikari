@@ -31,7 +31,7 @@ var destroyCmd = &cobra.Command{
 			return
 		}
 
-		if force {
+		if cluster.Force {
 			destroyVM(allInstances, true)
 			return
 		}
@@ -49,23 +49,11 @@ var destroyCmd = &cobra.Command{
 	},
 }
 
-var force bool // whether to force delete the vm
-
 func init() {
 	rootCmd.AddCommand(destroyCmd)
 
-	// Here you will define your flags and configuration settings.
-
-	// Cobra supports Persistent Flags which will work for this command
-	// and all subcommands, e.g.:
-	// destroyCmd.PersistentFlags().String("foo", "", "A help for foo")
-
-	// Cobra supports local flags which will only run when this command
-	// is called directly, e.g.:
-	// destroyCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
-
 	destroyCmd.Flags().StringVarP(&cluster.Name, "name", "n", "", "name of the cluster")
-	destroyCmd.Flags().BoolVarP(&force, "force", "f", false, "force destruction of the cluster even when VMs are running")
+	destroyCmd.Flags().BoolVarP(&cluster.Force, "force", "f", false, "force destruction of the cluster even when VMs are running")
 }
 
 func destroyVM(instances []lima.LimaVM, force bool) {

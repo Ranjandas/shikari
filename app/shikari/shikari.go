@@ -30,7 +30,7 @@ func (c ShikariCluster) GetCurrentVMCount() (uint8, uint8) {
 	return serverCount, clientCount
 }
 
-func (c ShikariCluster) CreateCluster(scale bool, force bool) {
+func (c ShikariCluster) CreateCluster(scale bool) {
 
 	serverCount, clientCount := c.GetCurrentVMCount()
 
@@ -62,7 +62,7 @@ func (c ShikariCluster) CreateCluster(scale bool, force bool) {
 			clientScaleDown = true
 		}
 
-		if (clientScaleDown || serverScaleDown) && !force {
+		if (clientScaleDown || serverScaleDown) && !c.Force {
 			fmt.Println("The following VMs", strings.Join(vmsToDestroy, ","), "will have to be destroyed. Rerun the command with -f to force the scale down!")
 			return
 		}
@@ -103,16 +103,14 @@ func (c ShikariCluster) CreateCluster(scale bool, force bool) {
 			tmpl = fmt.Sprintf("template://%s", c.Template)
 		}
 
-		// // example: --set '. |= .env.SHIKARI_VM_MODE="server", .env.SHIKARI_CLUSTER_NAME="murphy"'
+		// example: --set '. |= .env.SHIKARI_VM_MODE="server", .env.SHIKARI_CLUSTER_NAME="murphy"'
 		yqExpression := fmt.Sprintf(`.env.SHIKARI_CLUSTER_NAME="%s"`, c.Name)
 
-		// | .env.SHIKARI_VM_MODE="%s"
-
-		// // append server and client count variables
+		// append server and client count variables
 		countEnvVars := fmt.Sprintf(`.env.SHIKARI_SERVER_COUNT="%d" | .env.SHIKARI_CLIENT_COUNT="%d"`, c.NumServers, c.NumClients)
 		yqExpression = fmt.Sprintf("%s |  %s", yqExpression, countEnvVars)
 
-		// // append user defined environment variable
+		// append user defined environment variable
 		if userDefinedEnvs != "" {
 			yqExpression = fmt.Sprintf("%s | %s", yqExpression, userDefinedEnvs)
 		}
@@ -145,13 +143,14 @@ func (c ShikariCluster) CreateCluster(scale bool, force bool) {
 			fmt.Println(err)
 		}
 	}
+
 	if len(vmsToDestroy) > 0 {
 		var wg sync.WaitGroup
 		errCh := make(chan error, len(vmsToDestroy))
 
 		for _, vmName := range vmsToDestroy {
 			wg.Add(1)
-			go lima.DeleteLimaVM(vmName, force, &wg, errCh)
+			go lima.DeleteLimaVM(vmName, c.Force, &wg, errCh)
 			time.Sleep(2 * time.Second)
 		}
 		// Wait for all goroutines to finish

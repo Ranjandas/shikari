@@ -28,22 +28,13 @@ carrying the name as a prefix to easily identify.
 			fmt.Printf("Cluster %s alredy exist!", cluster.Name)
 			return
 		}
-		cluster.CreateCluster(false, false)
+		cluster.CreateCluster(false)
 	},
 }
 
 func init() {
 	rootCmd.AddCommand(createCmd)
 
-	// Here you will define your flags and configuration settings.
-
-	// Cobra supports Persistent Flags which will work for this command
-	// and all subcommands, e.g.:
-	// createCmd.PersistentFlags().String("foo", "", "A help for foo")
-
-	// Cobra supports local flags which will only run when this command
-	// is called directly, e.g.:
-	// createCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
 	createCmd.Flags().Uint8VarP(&cluster.NumServers, "servers", "s", 1, "number of servers")
 	createCmd.Flags().Uint8VarP(&cluster.NumClients, "clients", "c", 0, "number of clients")
 	createCmd.Flags().StringVarP(&cluster.Name, "name", "n", "", "name of the cluster")

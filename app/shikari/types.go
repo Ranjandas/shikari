@@ -7,4 +7,5 @@ type ShikariCluster struct {
 	Template   string
 	EnvVars    []string
 	ImgPath    string
+	Force      bool // flag to whether force operations
 }
