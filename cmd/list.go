@@ -83,7 +83,7 @@ func getClusterNameFromInstanceName(name string) string {
 }
 
 func isShikariVM(name string) bool {
-	pattern := `^([a-zA-Z]+)-(srv|cli)-(\d+)$`
+	pattern := `^([a-zA-Z0-9]+)-(srv|cli)-(\d+)$`
 
 	regex, err := regexp.Compile(pattern)
 

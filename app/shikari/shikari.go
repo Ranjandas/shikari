@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"sync"
 	"time"
@@ -31,6 +32,11 @@ func (c ShikariCluster) GetCurrentVMCount() (uint8, uint8) {
 }
 
 func (c ShikariCluster) CreateCluster(scale bool) {
+
+	if !c.validateName() {
+		fmt.Println("Cluster name can only contain alphanumeric characters!")
+		return
+	}
 
 	serverCount, clientCount := c.GetCurrentVMCount()
 
@@ -246,4 +252,11 @@ func (c ShikariCluster) getInstanceMode(instanceName string) string {
 	}
 
 	return mode
+}
+
+func (c ShikariCluster) validateName() bool {
+	pattern := `^([a-zA-Z0-9]+)$`
+	regex, _ := regexp.Compile(pattern)
+
+	return regex.MatchString(c.Name)
 }
