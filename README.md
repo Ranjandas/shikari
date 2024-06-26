@@ -14,20 +14,16 @@ The following are the pre-requisites for using Shikari
 * [socket_vmnet](https://github.com/lima-vm/socket_vmnet): Installed and configured as per Lima [requirements](https://lima-vm.io/docs/config/network/#socket_vmnet)
 * [Shikari Scenarios](https://github.com/Ranjandas/shikari-scenarios/): This is the primary source of various re-usable scenarios to use with Shikari
 
+## Install
+
+The Shikari binaries are available to download from GH releases. Please download the binary from here: https://github.com/Ranjandas/shikari/releases/latest
+
+
 ## Usage
 
 Shikari can be used to create clusters of any size depending on the capacity of the host on which the VMs are provisioned. Shikari under the hood invokes Lima commands to provision VMs. 
 
 The following sub-sections (named after various subcommands) shows how to use Shikari to create, use and destroy clusters.
-
-## Build
-
-Using go build, you can generate an executable binary, allowing you to distribute and deploy the program where you want.
-
-```
-go build
-```
-
 
 ### Create
 
@@ -46,16 +42,18 @@ $ shikari create \
     --env NOMAD_LICENSE=$(cat nomad.hclic)
 ```
 
-Shikari prefixes the VM's with the value of the `--name` argument to easily identify them. Use `limactl ls` to see the VMs.
+### List
+
+The `list` command is used to list the clusters and their VMs. You can get VMs of a specific cluster by passing the `--name/-n` flag.
 
 ```
-$ limactl ls | grep murphy
-murphy-cli-01    Running    127.0.0.1:62269    qemu      4       4GiB      100GiB    ~/.lima/murphy-cli-01
-murphy-cli-02    Running    127.0.0.1:62271    qemu      4       4GiB      100GiB    ~/.lima/murphy-cli-02
-murphy-cli-03    Running    127.0.0.1:62273    qemu      4       4GiB      100GiB    ~/.lima/murphy-cli-03
-murphy-srv-01    Running    127.0.0.1:62275    qemu      4       4GiB      100GiB    ~/.lima/murphy-srv-01
-murphy-srv-02    Running    127.0.0.1:62277    qemu      4       4GiB      100GiB    ~/.lima/murphy-srv-02
-murphy-srv-03    Running    127.0.0.1:62279    qemu      4       4GiB      100GiB    ~/.lima/murphy-srv-03
+$ CLUSTER       VM NAME             SATUS         DISK(GB)       MEMORY(GB)       CPUS       IMAGE
+murphy        murphy-cli-01       Running       100            4                4          /Users/ranjan/workspace/github/shikari-scenarios/packer/.artifacts/c-1.18-n-1.7/c-1.18-n-1.7.qcow2
+murphy        murphy-cli-02       Running       100            4                4          /Users/ranjan/workspace/github/shikari-scenarios/packer/.artifacts/c-1.18-n-1.7/c-1.18-n-1.7.qcow2
+murphy        murphy-cli-03       Running       100            4                4          /Users/ranjan/workspace/github/shikari-scenarios/packer/.artifacts/c-1.18-n-1.7/c-1.18-n-1.7.qcow2
+murphy        murphy-srv-01       Running       100            4                4          /Users/ranjan/workspace/github/shikari-scenarios/packer/.artifacts/c-1.18-n-1.7/c-1.18-n-1.7.qcow2
+murphy        murphy-srv-02       Running       100            4                4          /Users/ranjan/workspace/github/shikari-scenarios/packer/.artifacts/c-1.18-n-1.7/c-1.18-n-1.7.qcow2
+murphy        murphy-srv-03       Running       100            4                4          /Users/ranjan/workspace/github/shikari-scenarios/packer/.artifacts/c-1.18-n-1.7/c-1.18-n-1.7.qcow2
 ```
 
 #### Helper Variables
@@ -71,14 +69,16 @@ When spinning up the VM's, Shikari injects a few environment variables into each
 
 > NOTE: Please open GH [issues](https://github.com/Ranjandas/shikari/issues) if you would like to have additional variables injected.
 
-### Env (experimental)
+### Env
 
 The `env` command prints various Nomad and Consul environment variables that helps you interact with the Nomad and Consul Clusters form the Host (using client binaries).
 
 ```
-$ shikari env -n murphy --tls --acl
+$ shikari env -n murphy --tls --acl consul
 export CONSUL_HTTP_ADDR=https://192.168.105.13:8501
 export CONSUL_HTTP_TOKEN=root
+
+$ shikari env -n murphy --tls --acl nomad
 export NOMAD_ADDR=https://192.168.105.13:4646
 export NOMAD_TOKEN=00000000-0000-0000-0000-000000000000
 ```
@@ -86,7 +86,7 @@ export NOMAD_TOKEN=00000000-0000-0000-0000-000000000000
 Use `eval` to set these environment variables in the current shell session.
 
 ```
-$ eval $(shikari env -n murphy)
+$ eval $(shikari env -n murphy consul)
 
 $ consul members
 Node                Address              Status  Type    Build   Protocol  DC      Partition  Segment
