@@ -47,7 +47,8 @@ $ shikari create \
 The `list` command is used to list the clusters and their VMs. You can get VMs of a specific cluster by passing the `--name/-n` flag.
 
 ```
-$ CLUSTER       VM NAME             SATUS         DISK(GB)       MEMORY(GB)       CPUS       IMAGE
+$ shikari list
+CLUSTER       VM NAME             SATUS         DISK(GB)       MEMORY(GB)       CPUS       IMAGE
 murphy        murphy-cli-01       Running       100            4                4          /Users/ranjan/workspace/github/shikari-scenarios/packer/.artifacts/c-1.18-n-1.7/c-1.18-n-1.7.qcow2
 murphy        murphy-cli-02       Running       100            4                4          /Users/ranjan/workspace/github/shikari-scenarios/packer/.artifacts/c-1.18-n-1.7/c-1.18-n-1.7.qcow2
 murphy        murphy-cli-03       Running       100            4                4          /Users/ranjan/workspace/github/shikari-scenarios/packer/.artifacts/c-1.18-n-1.7/c-1.18-n-1.7.qcow2
