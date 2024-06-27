@@ -71,6 +71,8 @@ func (c ClientConfigOpts) printClientConfigEnvs(product string) {
 		fmt.Println(c.getConsulVariables())
 	case "nomad":
 		fmt.Println(c.getNomadVariables())
+	case "vault":
+		fmt.Println(c.getVaultVariables())
 	}
 }
 
@@ -167,10 +169,10 @@ func (c ClientConfigOpts) getNomadVariables() string {
 		scheme = "https://"
 	}
 
-	consulHTTPAddr := fmt.Sprintf("%s%s:%d", scheme, addr, port)
+	nomadHTTPAddr := fmt.Sprintf("%s%s:%d", scheme, addr, port)
 
 	// env-variable=value
-	httpAddrVar := fmt.Sprintf("export NOMAD_ADDR=%s", consulHTTPAddr)
+	httpAddrVar := fmt.Sprintf("export NOMAD_ADDR=%s", nomadHTTPAddr)
 	tokenVar := fmt.Sprintf("export NOMAD_TOKEN=%s", bootstrapToken)
 	insecureTLSVar := "export NOMAD_SKIP_VERIFY=true"
 
@@ -179,6 +181,35 @@ func (c ClientConfigOpts) getNomadVariables() string {
 	if c.ACL {
 		combinedVars = strings.Join([]string{httpAddrVar, tokenVar}, "\n")
 	}
+
+	if c.Insecure {
+		combinedVars = strings.Join([]string{combinedVars, insecureTLSVar}, "\n")
+	}
+
+	return combinedVars
+}
+
+func (c ClientConfigOpts) getVaultVariables() string {
+
+	if c.Unset {
+		return "unset VAULT_ADDR\nunset VAULT_SKIP_VERIFY"
+	}
+
+	addr := getIPAddress(c.getRandomServer())
+	scheme := "http://"
+	port := 8200
+
+	if c.TLS {
+		scheme = "https://"
+	}
+
+	vaultHTTPAddr := fmt.Sprintf("%s%s:%d", scheme, addr, port)
+
+	// env-variable=value
+	httpAddrVar := fmt.Sprintf("export VAULT_ADDR=%s", vaultHTTPAddr)
+	insecureTLSVar := "export VAULT_SKIP_VERIFY=true"
+
+	combinedVars := httpAddrVar
 
 	if c.Insecure {
 		combinedVars = strings.Join([]string{combinedVars, insecureTLSVar}, "\n")
