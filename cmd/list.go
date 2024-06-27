@@ -57,7 +57,7 @@ func listInstances(clusterName string) {
 	w.Flush()
 }
 
-func getImageLocation(images []map[string]string) string {
+func getImageLocation(images []lima.Image) string {
 
 	var arch, location string
 
@@ -69,8 +69,9 @@ func getImageLocation(images []map[string]string) string {
 	}
 
 	for _, image := range images {
-		if image["arch"] == arch {
-			location = image["location"]
+
+		if image.Arch == arch {
+			location = image.Location
 		}
 	}
 	return location
