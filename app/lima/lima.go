@@ -20,9 +20,9 @@ func ListInstances() []LimaVM {
 	}
 
 	var vms []LimaVM
-	var vm LimaVM
 
 	for _, line := range bytes.Split(output, []byte("\n")) {
+		var vm LimaVM
 		// condition to avoid duplicate entries
 		if string(line) != "" {
 			json.Unmarshal([]byte(line), &vm)
