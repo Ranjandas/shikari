@@ -47,12 +47,12 @@ changelog:
       - "^test:"
 
 brews:
-  name: shikari
-  homepage: "https://github.com/ranjandas/shikari"
-  description: "An opinionated Dev Cluster Provisioner using Lima"
-  commit_author:
-    name: Ranjandas
-    email: thejranjan@gmail.com
-  repository:
-    owner: ranjandas
-    name: homebrew-shikari
+  - name: shikari
+    homepage: "https://github.com/ranjandas/shikari"
+    description: "An opinionated Dev Cluster Provisioner using Lima"
+    commit_author:
+      name: Ranjandas
+      email: thejranjan@gmail.com
+    repository:
+      owner: ranjandas
+      name: homebrew-shikari
