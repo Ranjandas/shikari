@@ -156,3 +156,18 @@ func SpawnLimaVM(vmName string, tmpl string, yqExpression string, wg *sync.WaitG
 
 	fmt.Printf("Lima VM %s spawned successfully.\n", vmName)
 }
+
+func (vm LimaVM) GetScenarioNameFromEnv() string {
+
+	scenario_name := ""
+
+	if len(vm.Config.Env) == 0 {
+		scenario_name = ""
+	}
+
+	if env, ok := vm.Config.Env["SHIKARI_SCENARIO_NAME"]; ok {
+		scenario_name = env
+	}
+
+	return scenario_name
+}
