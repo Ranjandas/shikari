@@ -40,7 +40,7 @@ func listInstances(clusterName string) {
 	w := tabwriter.NewWriter(os.Stdout, 5, 3, 7, byte(' '), 0)
 
 	if !header {
-		fmt.Fprintln(w, "CLUSTER\tVM NAME\tSATUS\tDISK(GB)\tMEMORY(GB)\tCPUS\tIMAGE")
+		fmt.Fprintln(w, "CLUSTER\tVM NAME\tSTATUS\tSCENARIO\tDISK(GB)\tMEMORY(GB)\tCPUS\tIMAGE")
 	}
 
 	for _, vm := range vms {
@@ -51,7 +51,7 @@ func listInstances(clusterName string) {
 					continue //skip printing the
 				}
 			}
-			fmt.Fprintf(w, "%s\t%s\t%s\t%d\t%d\t%d\t%s\n", getClusterNameFromInstanceName(vm.Name), vm.Name, vm.Status, bytesToGiB(vm.Disk), bytesToGiB(vm.Memory), vm.Cpus, getImageLocation(vm.Config.Images))
+			fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%d\t%d\t%d\t%s\n", getClusterNameFromInstanceName(vm.Name), vm.Name, vm.Status, vm.GetScenarioNameFromEnv(), bytesToGiB(vm.Disk), bytesToGiB(vm.Memory), vm.Cpus, getImageLocation(vm.Config.Images))
 		}
 	}
 	w.Flush()
