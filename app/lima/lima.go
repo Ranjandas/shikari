@@ -33,26 +33,6 @@ func ListInstances() []LimaVM {
 	return vms
 }
 
-func GetInstance(name string) LimaVM {
-
-	var vm LimaVM
-
-	vms := ListInstances()
-
-	if len(vms) == 0 {
-		return vm
-	}
-
-	for _, v := range vms {
-		if v.Name == name {
-			vm = v
-			break
-		}
-	}
-
-	return vm
-}
-
 func GetInstancesByPrefix(name string) []LimaVM {
 	var filteredInstances []LimaVM
 
@@ -190,37 +170,4 @@ func (vm LimaVM) GetScenarioNameFromEnv() string {
 	}
 
 	return scenario_name
-}
-
-func (vm LimaVM) GetVMDir() string {
-	return vm.Dir
-}
-
-func (vm LimaVM) GetIPAddress() string {
-
-	command := "ip -j addr show dev lima0"
-	cmd := exec.Command("/bin/sh", "-c", fmt.Sprintf("limactl shell %s %s", vm.Name, command))
-
-	output, err := cmd.Output()
-
-	if err != nil {
-		fmt.Println("Error:", err)
-		return ""
-	}
-
-	var interfaces []Interface
-	err = json.Unmarshal([]byte(output), &interfaces)
-	if err != nil {
-		log.Fatalf("Error unmarshalling JSON: %v", err)
-	}
-
-	// Extract the local address where family is "inet"
-	for _, iface := range interfaces {
-		for _, addrInfo := range iface.AddrInfo {
-			if addrInfo.Family == "inet" {
-				return addrInfo.Local
-			}
-		}
-	}
-	return ""
 }

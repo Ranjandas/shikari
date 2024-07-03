@@ -4,7 +4,9 @@ Copyright © 2024 Ranjandas Athiyanathum Poyil thejranjan@gmail.com
 package cmd
 
 import (
+	"encoding/json"
 	"fmt"
+	"log"
 	"math/rand"
 	"os"
 	"os/exec"
@@ -26,14 +28,8 @@ export CONSUL_HTTP_TOKEN=xxx
 export CONSUL_HTTP_SSL_VERIFY=false`,
 	Run: func(cmd *cobra.Command, args []string) {
 
-		// Set ClientConfig Name same as Cluster Name
-		// TODO: Refcator the flags by unifying common flags
-		clientConfigOpts.Name = cluster.Name
-
 		if len(args) > 0 && clientConfigOpts.Name != "" {
-			if len(lima.GetInstancesByPrefix(clientConfigOpts.Name)) != 0 {
-				clientConfigOpts.printClientConfigEnvs(args[0])
-			}
+			clientConfigOpts.printClientConfigEnvs(args[0])
 		}
 	},
 }
@@ -41,11 +37,22 @@ export CONSUL_HTTP_SSL_VERIFY=false`,
 func init() {
 	rootCmd.AddCommand(envCmd)
 
-	envCmd.Flags().StringVarP(&cluster.Name, "name", "n", "", "name of the cluster")
+	envCmd.Flags().StringVarP(&clientConfigOpts.Name, "name", "n", "", "name of the cluster")
 	envCmd.Flags().BoolVarP(&clientConfigOpts.ACL, "acl", "a", false, "prints the ACL token variables")
 	envCmd.Flags().BoolVarP(&clientConfigOpts.TLS, "tls", "t", false, "prints the TLS variables")
 	envCmd.Flags().BoolVarP(&clientConfigOpts.Insecure, "insecure", "i", false, "prints the skip TLS Verify variables")
 	envCmd.Flags().BoolVarP(&clientConfigOpts.Unset, "unset", "u", false, "unset the variables insetad of export")
+}
+
+type AddrInfo struct {
+	Family string `json:"family"`
+	Local  string `json:"local"`
+}
+
+type Interface struct {
+	IfIndex  int        `json:"ifindex"`
+	IfName   string     `json:"ifname"`
+	AddrInfo []AddrInfo `json:"addr_info"`
 }
 
 type ClientConfigOpts struct {
@@ -66,12 +73,10 @@ func (c ClientConfigOpts) printClientConfigEnvs(product string) {
 		fmt.Println(c.getNomadVariables())
 	case "vault":
 		fmt.Println(c.getVaultVariables())
-	case "k3s":
-		fmt.Println(c.getK3SVariables())
 	}
 }
 
-func (c ClientConfigOpts) getRandomServer() lima.LimaVM {
+func (c ClientConfigOpts) getRandomServer() string {
 	// always get the instances of type server "-srv"
 	instances := lima.GetInstancesByPrefix(fmt.Sprintf("%s-srv", c.Name))
 	runningInstances := lima.GetInstancesByStatus(instances, "running")
@@ -81,7 +86,36 @@ func (c ClientConfigOpts) getRandomServer() lima.LimaVM {
 	}
 
 	randomIndex := rand.Intn(len(runningInstances))
-	return runningInstances[randomIndex]
+	return runningInstances[randomIndex].Name
+}
+
+func getIPAddress(srvName string) string {
+
+	command := "ip -j addr show dev lima0"
+	cmd := exec.Command("/bin/sh", "-c", fmt.Sprintf("limactl shell %s %s", srvName, command))
+
+	output, err := cmd.Output()
+
+	if err != nil {
+		fmt.Println("Error:", err)
+		return ""
+	}
+
+	var interfaces []Interface
+	err = json.Unmarshal([]byte(output), &interfaces)
+	if err != nil {
+		log.Fatalf("Error unmarshalling JSON: %v", err)
+	}
+
+	// Extract the local address where family is "inet"
+	for _, iface := range interfaces {
+		for _, addrInfo := range iface.AddrInfo {
+			if addrInfo.Family == "inet" {
+				return addrInfo.Local
+			}
+		}
+	}
+	return ""
 }
 
 func (c ClientConfigOpts) getConsulVariables() string {
@@ -90,7 +124,7 @@ func (c ClientConfigOpts) getConsulVariables() string {
 		return "unset CONSUL_HTTP_ADDR\nunset CONSUL_HTTP_TOKEN\nunset CONSUL_HTTP_SSL_VERIFY"
 	}
 
-	addr := c.getRandomServer().GetIPAddress()
+	addr := getIPAddress(c.getRandomServer())
 	scheme := "http://"
 	port := 8500
 	bootstrapToken := "root" // consul bootstrap token
@@ -126,7 +160,7 @@ func (c ClientConfigOpts) getNomadVariables() string {
 		return "unset NOMAD_ADDR\nunset NOMAD_TOKEN\nunset NOMAD_SKIP_VERIFY"
 	}
 
-	addr := c.getRandomServer().GetIPAddress()
+	addr := getIPAddress(c.getRandomServer())
 	scheme := "http://"
 	port := 4646
 	bootstrapToken := "00000000-0000-0000-0000-000000000000" // consul bootstrap token
@@ -161,7 +195,7 @@ func (c ClientConfigOpts) getVaultVariables() string {
 		return "unset VAULT_ADDR\nunset VAULT_SKIP_VERIFY"
 	}
 
-	addr := c.getRandomServer().GetIPAddress()
+	addr := getIPAddress(c.getRandomServer())
 	scheme := "http://"
 	port := 8200
 
@@ -182,35 +216,4 @@ func (c ClientConfigOpts) getVaultVariables() string {
 	}
 
 	return combinedVars
-}
-
-func (c ClientConfigOpts) getK3SVariables() string {
-	var k3sKubeConfig string
-
-	vm := lima.GetInstance(fmt.Sprintf("%s-srv-01", c.Name))
-
-	if vm.Name == "" {
-		return "" //There are no VMs in the cluster
-	}
-
-	err := c.copyK3SKubeConfig()
-	if err != nil {
-		fmt.Printf("error copying KUBECONFIG for Cluster: %s %v\n", c.Name, err)
-	}
-
-	k3sKubeConfig = fmt.Sprintf("export KUBECONFIG=%s/k3s.yaml", vm.Dir)
-
-	return k3sKubeConfig
-}
-
-func (c ClientConfigOpts) copyK3SKubeConfig() error {
-
-	vm := lima.GetInstance(fmt.Sprintf("%s-srv-01", c.Name))
-
-	cmd := exec.Command("/bin/sh", "-c", fmt.Sprintf("limactl copy %s:/etc/rancher/k3s/k3s.yaml %s", vm.Name, vm.Dir))
-
-	// Run the command
-	err := cmd.Run()
-
-	return err
 }
