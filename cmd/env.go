@@ -87,17 +87,19 @@ func (c ClientConfigOpts) getRandomServer() lima.LimaVM {
 func (c ClientConfigOpts) getConsulVariables() string {
 
 	if c.Unset {
-		return "unset CONSUL_HTTP_ADDR\nunset CONSUL_HTTP_TOKEN\nunset CONSUL_HTTP_SSL_VERIFY"
+		return "unset CONSUL_HTTP_ADDR\nunset CONSUL_HTTP_TOKEN\nunset CONSUL_HTTP_SSL_VERIFY\nunset CONSUL_CACERT"
 	}
 
 	addr := c.getRandomServer().GetIPAddress()
 	scheme := "http://"
 	port := 8500
 	bootstrapToken := "root" // consul bootstrap token
+	caCertVar := ""
 
 	if c.TLS {
 		scheme = "https://"
 		port = 8501
+		caCertVar = fmt.Sprintf("export CONSUL_CACERT=%s", c.getTLSCaCertPath("consul"))
 	}
 
 	consulHTTPAddr := fmt.Sprintf("%s%s:%d", scheme, addr, port)
@@ -109,8 +111,12 @@ func (c ClientConfigOpts) getConsulVariables() string {
 
 	combinedVars := httpAddrVar
 
+	if c.TLS {
+		combinedVars = strings.Join([]string{combinedVars, caCertVar}, "\n")
+	}
+
 	if c.ACL {
-		combinedVars = strings.Join([]string{httpAddrVar, tokenVar}, "\n")
+		combinedVars = strings.Join([]string{combinedVars, tokenVar}, "\n")
 	}
 
 	if c.Insecure {
@@ -123,16 +129,18 @@ func (c ClientConfigOpts) getConsulVariables() string {
 func (c ClientConfigOpts) getNomadVariables() string {
 
 	if c.Unset {
-		return "unset NOMAD_ADDR\nunset NOMAD_TOKEN\nunset NOMAD_SKIP_VERIFY"
+		return "unset NOMAD_ADDR\nunset NOMAD_TOKEN\nunset NOMAD_SKIP_VERIFY\nunset NOMAD_CACERT"
 	}
 
 	addr := c.getRandomServer().GetIPAddress()
 	scheme := "http://"
 	port := 4646
 	bootstrapToken := "00000000-0000-0000-0000-000000000000" // consul bootstrap token
+	caCertVar := ""
 
 	if c.TLS {
 		scheme = "https://"
+		caCertVar = fmt.Sprintf("export NOMAD_CACERT=%s", c.getTLSCaCertPath("nomad"))
 	}
 
 	nomadHTTPAddr := fmt.Sprintf("%s%s:%d", scheme, addr, port)
@@ -144,8 +152,12 @@ func (c ClientConfigOpts) getNomadVariables() string {
 
 	combinedVars := httpAddrVar
 
+	if c.TLS {
+		combinedVars = strings.Join([]string{combinedVars, caCertVar}, "\n")
+	}
+
 	if c.ACL {
-		combinedVars = strings.Join([]string{httpAddrVar, tokenVar}, "\n")
+		combinedVars = strings.Join([]string{combinedVars, tokenVar}, "\n")
 	}
 
 	if c.Insecure {
@@ -158,15 +170,17 @@ func (c ClientConfigOpts) getNomadVariables() string {
 func (c ClientConfigOpts) getVaultVariables() string {
 
 	if c.Unset {
-		return "unset VAULT_ADDR\nunset VAULT_SKIP_VERIFY"
+		return "unset VAULT_ADDR\nunset VAULT_SKIP_VERIFY\nunset VAULT_CACERT"
 	}
 
 	addr := c.getRandomServer().GetIPAddress()
 	scheme := "http://"
 	port := 8200
+	caCertVar := ""
 
 	if c.TLS {
 		scheme = "https://"
+		caCertVar = fmt.Sprintf("export VAULT_CACERT=%s", c.getTLSCaCertPath("vault"))
 	}
 
 	vaultHTTPAddr := fmt.Sprintf("%s%s:%d", scheme, addr, port)
@@ -176,6 +190,10 @@ func (c ClientConfigOpts) getVaultVariables() string {
 	insecureTLSVar := "export VAULT_SKIP_VERIFY=true"
 
 	combinedVars := httpAddrVar
+
+	if c.TLS {
+		combinedVars = strings.Join([]string{combinedVars, caCertVar}, "\n")
+	}
 
 	if c.Insecure {
 		combinedVars = strings.Join([]string{combinedVars, insecureTLSVar}, "\n")
@@ -213,4 +231,16 @@ func (c ClientConfigOpts) copyK3SKubeConfig() error {
 	err := cmd.Run()
 
 	return err
+}
+
+func (c ClientConfigOpts) getTLSCaCertPath(product string) string {
+	firstInstance := fmt.Sprintf("%s-srv-01", c.Name)
+
+	vm := lima.GetInstance(firstInstance)
+
+	if vm.Name == "" {
+		return "" //There are no VMs in the cluster
+	}
+
+	return fmt.Sprintf("%s/copied-from-guest/%s-agent.ca.pem", vm.GetVMDir(), product)
 }
