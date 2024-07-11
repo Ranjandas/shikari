@@ -242,5 +242,5 @@ func (c ClientConfigOpts) getTLSCaCertPath(product string) string {
 		return "" //There are no VMs in the cluster
 	}
 
-	return fmt.Sprintf("%s/copied-from-guest/%s-agent.ca.pem", vm.GetVMDir(), product)
+	return fmt.Sprintf("%s/copied-from-guest/%s-agent-ca.pem", vm.GetVMDir(), product)
 }
