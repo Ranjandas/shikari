@@ -66,6 +66,8 @@ func (c ClientConfigOpts) printClientConfigEnvs(product string) {
 		fmt.Println(c.getNomadVariables())
 	case "vault":
 		fmt.Println(c.getVaultVariables())
+	case "boundary":
+		fmt.Println(c.getBoundaryVariables())
 	case "k3s":
 		fmt.Println(c.getK3SVariables())
 	}
@@ -188,6 +190,42 @@ func (c ClientConfigOpts) getVaultVariables() string {
 	// env-variable=value
 	httpAddrVar := fmt.Sprintf("export VAULT_ADDR=%s", vaultHTTPAddr)
 	insecureTLSVar := "export VAULT_SKIP_VERIFY=true"
+
+	combinedVars := httpAddrVar
+
+	if c.TLS {
+		combinedVars = strings.Join([]string{combinedVars, caCertVar}, "\n")
+	}
+
+	if c.Insecure {
+		combinedVars = strings.Join([]string{combinedVars, insecureTLSVar}, "\n")
+	}
+
+	return combinedVars
+}
+
+func (c ClientConfigOpts) getBoundaryVariables() string {
+	// ref: https://developer.hashicorp.com/boundary/docs/commands#environment-variables
+
+	if c.Unset {
+		return "unset BOUNDARY_ADDR\nunset BOUNDARY_TLS_INSECURE\nunset BOUNDARY_CACERT"
+	}
+
+	addr := c.getRandomServer().GetIPAddress()
+	scheme := "http://"
+	port := 9200
+	caCertVar := ""
+
+	if c.TLS {
+		scheme = "https://"
+		caCertVar = fmt.Sprintf("export BOUNDARY_CACERT=%s", c.getTLSCaCertPath("boundary"))
+	}
+
+	boundaryHTTPAddr := fmt.Sprintf("%s%s:%d", scheme, addr, port)
+
+	// env-variable=value
+	httpAddrVar := fmt.Sprintf("export BOUNDARY_ADDR=%s", boundaryHTTPAddr)
+	insecureTLSVar := "export BOUNDARY_TLS_INSECURE=true"
 
 	combinedVars := httpAddrVar
 
