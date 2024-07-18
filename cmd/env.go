@@ -280,6 +280,7 @@ func (c ClientConfigOpts) getK3SVariables() string {
 	err := c.copyK3SKubeConfig()
 	if err != nil {
 		fmt.Printf("error copying KUBECONFIG for Cluster: %s %v\n", c.Name, err)
+		os.Exit(1)
 	}
 
 	k3sKubeConfig = fmt.Sprintf("export KUBECONFIG=%s/k3s.yaml", vm.Dir)
