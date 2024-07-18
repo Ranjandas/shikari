@@ -14,25 +14,42 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var validProducts = []string{"consul", "nomad", "vault", "boundary", "k3s"}
+
 // envCmd represents the env command
 var envCmd = &cobra.Command{
 	Use:   "env",
 	Short: "Prints client config environment variables",
 	Long: `Prints client config environment variables.
+Multiple product names can be passed separated by comma.
+
 For example:
-shikari env -n murphy -tai consul
+shikari env -n murphy -t consul,nomad
 export CONSUL_HTTP_ADDR=https://xxx.xxx
-export CONSUL_HTTP_TOKEN=xxx
-export CONSUL_HTTP_SSL_VERIFY=false`,
+export CONSUL_CACERT=xxx/consul-agent-ca.pem
+export NOMAD_ADDR=https://xxx.xxx
+export NOMAD_CACERT=xxx/nomad-agent-ca.pem`,
 	Run: func(cmd *cobra.Command, args []string) {
 
+		if len(lima.GetInstancesByPrefix(cluster.Name)) == 0 {
+			fmt.Printf("Cluster \"%s\" not found.\n", cluster.Name)
+			return
+		}
+
+		if !(len(args) > 0) {
+			fmt.Println("No product name passed as argument. Supported product names", validProducts)
+			return
+		}
 		// Set ClientConfig Name same as Cluster Name
 		// TODO: Refcator the flags by unifying common flags
 		clientConfigOpts.Name = cluster.Name
+		products := args[0]
 
-		if len(args) > 0 && clientConfigOpts.Name != "" {
-			if len(lima.GetInstancesByPrefix(clientConfigOpts.Name)) != 0 {
-				clientConfigOpts.printClientConfigEnvs(args[0])
+		for _, product := range strings.Split(products, ",") {
+			if isValidProduct(product) {
+				clientConfigOpts.printClientConfigEnvs(product)
+			} else {
+				fmt.Println("\nInvalid product name", product)
 			}
 		}
 	},
@@ -46,6 +63,8 @@ func init() {
 	envCmd.Flags().BoolVarP(&clientConfigOpts.TLS, "tls", "t", false, "prints the TLS variables")
 	envCmd.Flags().BoolVarP(&clientConfigOpts.Insecure, "insecure", "i", false, "prints the skip TLS Verify variables")
 	envCmd.Flags().BoolVarP(&clientConfigOpts.Unset, "unset", "u", false, "unset the variables insetad of export")
+
+	envCmd.MarkFlagRequired("name")
 }
 
 type ClientConfigOpts struct {
@@ -57,6 +76,15 @@ type ClientConfigOpts struct {
 }
 
 var clientConfigOpts ClientConfigOpts
+
+func isValidProduct(product string) bool {
+	for _, p := range validProducts {
+		if product == p {
+			return true
+		}
+	}
+	return false
+}
 
 func (c ClientConfigOpts) printClientConfigEnvs(product string) {
 	switch product {
