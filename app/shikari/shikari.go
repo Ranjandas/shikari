@@ -114,7 +114,8 @@ func (c ShikariCluster) CreateCluster(scale bool) {
 
 		// append server and client count variables
 		countEnvVars := fmt.Sprintf(`.env.SHIKARI_SERVER_COUNT="%d" | .env.SHIKARI_CLIENT_COUNT="%d"`, c.NumServers, c.NumClients)
-		yqExpression = fmt.Sprintf("%s |  %s", yqExpression, countEnvVars)
+		launchModeEnvVar := fmt.Sprintf(`.env.SHIKARI_LAUNCH_MODE="%s"`, launchMode(scale))
+		yqExpression = fmt.Sprintf("%s |  %s | %s", yqExpression, countEnvVars, launchModeEnvVar)
 
 		// append user defined environment variable
 		if userDefinedEnvs != "" {
@@ -259,4 +260,12 @@ func (c ShikariCluster) validateName() bool {
 	regex, _ := regexp.Compile(pattern)
 
 	return regex.MatchString(c.Name)
+}
+
+func launchMode(scale bool) string {
+	if scale {
+		return "SCALE"
+	}
+
+	return "CREATE"
 }
