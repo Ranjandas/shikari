@@ -64,6 +64,7 @@ When spinning up the VM's, Shikari injects a few environment variables into each
 * Name of the cluster (injected as `SHIKARI_CLUSTER_NAME` env variable)
 * Count of Number of Servers (injected as `SHIKARI_SERVER_COUNT` env variable)
 * Count of Number of Clients (injected as `SHIKARI_CLIENT_COUNT` env variable)
+* Launch mode of VMs (`CREATE` or `SCALE`) (injected as `SHIKARI_LAUNCH_MODE` env variable)
 
 > NOTE: The variables are prefixed with `SHIKARI_` from `v0.3.0`. Please refer to the specific version doc to find the right variables.
 
