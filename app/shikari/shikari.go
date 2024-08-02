@@ -264,8 +264,8 @@ func (c ShikariCluster) validateName() bool {
 
 func launchMode(scale bool) string {
 	if scale {
-		return "SCALE"
+		return "scale"
 	}
 
-	return "CREATE"
+	return "create"
 }
