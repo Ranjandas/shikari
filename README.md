@@ -2,7 +2,7 @@
 
 Shikari is an opinionated tool that helps you create multi-vm clusters (primarly aimed at Nomad and Consul) using [Lima](https://lima-vm.io) as the underlying VM Manager.
 
-Various scenarios built for Shikari is available here: https://github.com/Ranjandas/shikari-scenarios/
+Various scenarios built for Shikari is available here: [https://github.com/hashicorp-support/shikari-scenarios](https://github.com/hashicorp-support/shikari-scenarios)
 
 ## Prerequisites
 
@@ -12,7 +12,7 @@ The following are the pre-requisites for using Shikari
 * QEMU [Optional]: Required if you are also baking images using packer
 * HashiCorp Packer: To build custom images (available in the shikar-scenarios/packer repository)
 * [socket_vmnet](https://github.com/lima-vm/socket_vmnet): Installed and configured as per Lima [requirements](https://lima-vm.io/docs/config/network/#socket_vmnet)
-* [Shikari Scenarios](https://github.com/Ranjandas/shikari-scenarios/): This is the primary source of various re-usable scenarios to use with Shikari
+* [Shikari Scenarios](https://github.com/hashicorp-support/shikari-scenarios): This is the primary source of various re-usable scenarios to use with Shikari
 
 ## Install
 
