@@ -8,6 +8,7 @@ import (
 	"math/rand"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 
 	lima "github.com/ranjandas/shikari/app/lima"
@@ -296,6 +297,14 @@ func (c ClientConfigOpts) copyK3SKubeConfig() error {
 
 	// Run the command
 	err := cmd.Run()
+	if err != nil {
+		return err
+	}
+
+	// Set 0600 permission as a best practice
+	filepath := filepath.Join(vm.Dir, "k3s.yaml")
+
+	err = os.Chmod(filepath, 0400)
 
 	return err
 }
