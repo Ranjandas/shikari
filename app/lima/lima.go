@@ -177,6 +177,27 @@ func SpawnLimaVM(vmName string, tmpl string, yqExpression string, wg *sync.WaitG
 	fmt.Printf("Lima VM %s spawned successfully.\n", vmName)
 }
 
+func ShellLimaVM(vmName string) {
+
+	limaCmd := fmt.Sprintf("limactl shell '%s'", vmName)
+	cmd := exec.Command("/bin/sh", "-c", limaCmd)
+
+	// Set the input to os.Stdin, output to os.Stdout and os.Stderr
+	cmd.Stdin = os.Stdin
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	// Run the command
+	if err := cmd.Start(); err != nil {
+		log.Fatalf("Failed to get a shell inside %s: %v", vmName, err)
+	}
+
+	// Wait for the command to finish and check for errors
+	if err := cmd.Wait(); err != nil {
+		log.Fatalf("Command finished with error: %v", err)
+	}
+}
+
 func (vm LimaVM) GetScenarioNameFromEnv() string {
 
 	scenario_name := ""
