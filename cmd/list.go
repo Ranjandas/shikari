@@ -29,18 +29,18 @@ func init() {
 	rootCmd.AddCommand(listCmd)
 
 	listCmd.Flags().StringVarP(&cluster.Name, "name", "n", "", "name of the  cluster")
-	listCmd.Flags().BoolVarP(&header, "no-header", "", false, "skip the header from list output")
+	listCmd.Flags().BoolVarP(&noheader, "no-header", "", false, "skip the header from list output")
 }
 
-var header bool
+var noheader bool
 
 func listInstances(clusterName string) {
 	vms := lima.ListInstances()
 
-	w := tabwriter.NewWriter(os.Stdout, 5, 3, 7, byte(' '), 0)
+	w := tabwriter.NewWriter(os.Stdout, 4, 8, 4, byte(' '), 0)
 
-	if !header {
-		fmt.Fprintln(w, "CLUSTER\tVM NAME\tSTATUS\tSCENARIO\tDISK(GB)\tMEMORY(GB)\tCPUS\tIMAGE")
+	if !noheader {
+		fmt.Fprintln(w, "CLUSTER\tVM NAME\tIP(lima0)\tSTATUS\tSCENARIO\tDISK(GB)\tMEMORY(GB)\tCPUS\tIMAGE")
 	}
 
 	for _, vm := range vms {
@@ -51,7 +51,7 @@ func listInstances(clusterName string) {
 					continue //skip printing the
 				}
 			}
-			fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%d\t%d\t%d\t%s\n", getClusterNameFromInstanceName(vm.Name), vm.Name, vm.Status, vm.GetScenarioNameFromEnv(), bytesToGiB(vm.Disk), bytesToGiB(vm.Memory), vm.Cpus, getImageLocation(vm.Config.Images))
+			fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%d\t%d\t%d\t%s\n", getClusterNameFromInstanceName(vm.Name), vm.Name, vm.GetIPAddress(), vm.Status, vm.GetScenarioNameFromEnv(), bytesToGiB(vm.Disk), bytesToGiB(vm.Memory), vm.Cpus, getImageLocation(vm.Config.Images))
 		}
 	}
 	w.Flush()
