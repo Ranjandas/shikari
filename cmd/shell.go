@@ -36,7 +36,7 @@ var shellCmd = &cobra.Command{
 func init() {
 	rootCmd.AddCommand(shellCmd)
 
-	usageString := "Usage:\n shikari shell <vm-name> [flags]\n\nFlags:\n -h, --help help for shell\n"
+	usageString := "Usage:\n shikari shell <vm-name>\n\nFlags:\n -h, --help help for shell\n"
 
 	shellCmd.SetUsageTemplate(usageString)
 }
