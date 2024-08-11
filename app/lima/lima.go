@@ -219,6 +219,10 @@ func (vm LimaVM) GetVMDir() string {
 
 func (vm LimaVM) GetIPAddress() string {
 
+	if vm.Status != "Running" {
+		return ""
+	}
+
 	command := "ip -j addr show dev lima0"
 	cmd := exec.Command("/bin/sh", "-c", fmt.Sprintf("limactl shell %s %s", vm.Name, command))
 
