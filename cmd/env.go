@@ -304,7 +304,7 @@ func (c ClientConfigOpts) copyK3SKubeConfig() error {
 	// Set 0600 permission as a best practice
 	filepath := filepath.Join(vm.Dir, "k3s.yaml")
 
-	err = os.Chmod(filepath, 0400)
+	err = os.Chmod(filepath, 0600)
 
 	return err
 }
