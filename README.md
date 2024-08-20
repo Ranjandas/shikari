@@ -112,6 +112,16 @@ The `start` command starts all the VMs in a stopped cluster.
 $ shikari start -n <cluster-name>
 ```
 
+### Shell
+
+> Introduced in v0.6.0
+
+The `shell` command gets you a shell inside the VM
+
+```
+$ shikari shell <vm-name>
+```
+
 ### Exec
 
 The `exec` command takes a command as argument and executes the command against a set of servers and returns the results. You can use the following flags to filter the VMs against which the commands are executed.
