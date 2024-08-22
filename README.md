@@ -136,15 +136,15 @@ The `exec` command takes a command as argument and executes the command against 
 ```
 $ shikari exec -n murphy -s sudo systemctl is-enabled consul
 
-Running command againt: murphy-srv-01
+Running command against: murphy-srv-01
 
 enabled
 
-Running command againt: murphy-srv-02
+Running command against: murphy-srv-02
 
 enabled
 
-Running command againt: murphy-srv-03
+Running command against: murphy-srv-03
 
 enabled
 ```
