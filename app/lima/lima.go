@@ -192,10 +192,7 @@ func ShellLimaVM(vmName string) {
 		log.Fatalf("Failed to get a shell inside %s: %v", vmName, err)
 	}
 
-	// Wait for the command to finish and check for errors
-	if err := cmd.Wait(); err != nil {
-		log.Fatalf("Command finished with error: %v", err)
-	}
+	cmd.Wait()
 }
 
 func (vm LimaVM) GetScenarioNameFromEnv() string {
