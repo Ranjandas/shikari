@@ -21,6 +21,7 @@ var execCmd = &cobra.Command{
 You can run commands against specific class of servers (clients, servers or all)`,
 	Run: func(cmd *cobra.Command, args []string) {
 
+		quiet, _ := cmd.Flags().GetBool("quiet")
 		execAll, _ := cmd.Flags().GetBool("all")
 		execServers, _ := cmd.Flags().GetBool("servers")
 		execClients, _ := cmd.Flags().GetBool("clients")
@@ -41,14 +42,14 @@ You can run commands against specific class of servers (clients, servers or all)
 
 		if execAll {
 			for _, vmName := range instances {
-				lima.ExecLimaVM(vmName.Name, strings.Join(args, " "))
+				lima.ExecLimaVM(vmName.Name, strings.Join(args, " "), quiet)
 			}
 		}
 
 		if execServers {
 			for _, vmName := range instances {
 				if strings.HasPrefix(vmName.Name, fmt.Sprintf("%s-srv", clusterName)) {
-					lima.ExecLimaVM(vmName.Name, strings.Join(args, " "))
+					lima.ExecLimaVM(vmName.Name, strings.Join(args, " "), quiet)
 				}
 
 			}
@@ -57,7 +58,7 @@ You can run commands against specific class of servers (clients, servers or all)
 		if execClients {
 			for _, vmName := range instances {
 				if strings.HasPrefix(vmName.Name, fmt.Sprintf("%s-cli", clusterName)) {
-					lima.ExecLimaVM(vmName.Name, strings.Join(args, " "))
+					lima.ExecLimaVM(vmName.Name, strings.Join(args, " "), quiet)
 				}
 
 			}
@@ -68,7 +69,7 @@ You can run commands against specific class of servers (clients, servers or all)
 			for _, vmName := range instances {
 				if strings.HasSuffix(vmName.Name, execInstance) {
 					instanceExists = true
-					lima.ExecLimaVM(vmName.Name, strings.Join(args, " "))
+					lima.ExecLimaVM(vmName.Name, strings.Join(args, " "), quiet)
 				}
 			}
 			if !instanceExists {
@@ -82,6 +83,7 @@ You can run commands against specific class of servers (clients, servers or all)
 func init() {
 	rootCmd.AddCommand(execCmd)
 
+	execCmd.Flags().BoolP("quiet", "q", false, "prints only the output of the commands without headers")
 	execCmd.Flags().BoolP("clients", "c", false, "run commands against client instances in the cluster")
 	execCmd.Flags().BoolP("servers", "s", false, "run commands against server instances in the cluster")
 	execCmd.Flags().BoolP("all", "a", false, "run commands against all instances in the cluster")
