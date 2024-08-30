@@ -140,9 +140,11 @@ func DeleteLimaVM(vmName string, force bool, wg *sync.WaitGroup, errCh chan<- er
 	fmt.Printf("Lima VM %s deleted successfully.\n", vmName)
 }
 
-func ExecLimaVM(vmName string, command string) {
+func ExecLimaVM(vmName string, command string, quiet bool) {
 
-	fmt.Printf("\nRunning command against: %s\n\n", vmName)
+	if !quiet {
+		fmt.Printf("\nRunning command against: %s\n\n", vmName)
+	}
 
 	cmd := exec.Command("/bin/sh", "-c", fmt.Sprintf("limactl shell %s %s", vmName, command))
 
