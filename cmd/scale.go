@@ -4,8 +4,6 @@ Copyright © 2024 Ranjandas Athiyanathum Poyil thejranjan@gmail.com
 package cmd
 
 import (
-	"fmt"
-
 	shikari "github.com/ranjandas/shikari/app/shikari"
 	"github.com/spf13/cobra"
 )
@@ -16,12 +14,6 @@ var scaleCmd = &cobra.Command{
 	Short: "Scale the number of VMs in the cluster",
 	Long:  `Scale the number of VMs in the cluster`,
 	Run: func(cmd *cobra.Command, args []string) {
-
-		if cluster.NumServers > 5 {
-			fmt.Println("Servers are not recommended to be more than 5!")
-			return
-		}
-
 		cluster.CreateCluster(true)
 	},
 }
