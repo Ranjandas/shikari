@@ -134,7 +134,7 @@ func (c ShikariCluster) CreateCluster(scale bool) {
 			wg.Add(1)
 			yqExpr := fmt.Sprintf(`%s | .env.SHIKARI_VM_MODE="%s"`, yqExpression, c.getInstanceMode(vmName))
 
-			go lima.SpawnLimaVM(vmName, tmpl, yqExpr, &wg, errCh)
+			go lima.SpawnLimaVM(vmName, c.Arch, tmpl, yqExpr, &wg, errCh)
 			yqExpr = ""
 
 		}

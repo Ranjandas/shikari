@@ -159,11 +159,11 @@ func ExecLimaVM(vmName string, command string, quiet bool) {
 	}
 }
 
-func SpawnLimaVM(vmName string, tmpl string, yqExpression string, wg *sync.WaitGroup, errCh chan<- error) {
+func SpawnLimaVM(vmName string, arch string, tmpl string, yqExpression string, wg *sync.WaitGroup, errCh chan<- error) {
 	defer wg.Done()
 
 	// Define the command to spawn a Lima VM
-	limaCmd := fmt.Sprintf("limactl start --name %s %s --tty=false --set '%s'", vmName, tmpl, yqExpression)
+	limaCmd := fmt.Sprintf("limactl start --name %s %s --arch %s --tty=false --set '%s'", vmName, tmpl, arch, yqExpression)
 	cmd := exec.Command("/bin/sh", "-c", limaCmd)
 
 	// Set the output to os.Stdout and os.Stderr

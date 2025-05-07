@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"os"
 	"regexp"
-	"runtime"
 	"strings"
 	"text/tabwriter"
 
@@ -40,7 +39,7 @@ func listInstances(clusterName string) {
 	w := tabwriter.NewWriter(os.Stdout, 4, 8, 4, byte(' '), 0)
 
 	if !noheader {
-		fmt.Fprintln(w, "CLUSTER\tVM NAME\tIP(lima0)\tSTATUS\tSCENARIO\tDISK(GB)\tMEMORY(GB)\tCPUS\tIMAGE")
+		fmt.Fprintln(w, "CLUSTER\tVM NAME\tARCH\tIP(lima0)\tSTATUS\tSCENARIO\tDISK(GB)\tMEMORY(GB)\tCPUS\tIMAGE")
 	}
 
 	for _, vm := range vms {
@@ -51,26 +50,25 @@ func listInstances(clusterName string) {
 					continue //skip printing the
 				}
 			}
-			fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%d\t%d\t%d\t%s\n", getClusterNameFromInstanceName(vm.Name), vm.Name, vm.GetIPAddress(), vm.Status, vm.GetScenarioNameFromEnv(), bytesToGiB(vm.Disk), bytesToGiB(vm.Memory), vm.Cpus, getImageLocation(vm.Config.Images))
+			fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\t%d\t%d\t%d\t%s\n", getClusterNameFromInstanceName(vm.Name),
+				vm.Name, vm.Arch, vm.GetIPAddress(),
+				vm.Status, vm.GetScenarioNameFromEnv(),
+				bytesToGiB(vm.Disk), bytesToGiB(vm.Memory),
+				vm.Cpus,
+				getImageLocation(vm),
+			)
 		}
 	}
 	w.Flush()
 }
 
-func getImageLocation(images []lima.Image) string {
+func getImageLocation(vm lima.LimaVM) string {
 
-	var arch, location string
+	var location string
 
-	switch runtime.GOARCH {
-	case "arm64":
-		arch = "aarch64"
-	case "amd64":
-		arch = "x86_64"
-	}
+	for _, image := range vm.Config.Images {
 
-	for _, image := range images {
-
-		if image.Arch == arch {
+		if image.Arch == vm.Arch {
 			location = image.Location
 		}
 	}

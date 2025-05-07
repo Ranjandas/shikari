@@ -12,6 +12,7 @@ type Image struct {
 
 type LimaVM struct {
 	Name   string `json:"name"`
+	Arch   string `json:"arch"`
 	Status string `json:"status"`
 	Dir    string `json:"dir"`
 	Memory uint64 `json:"memory"`
