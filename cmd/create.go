@@ -38,6 +38,7 @@ func init() {
 	createCmd.Flags().Uint8VarP(&cluster.NumServers, "servers", "s", 1, "number of servers")
 	createCmd.Flags().Uint8VarP(&cluster.NumClients, "clients", "c", 0, "number of clients")
 	createCmd.Flags().StringVarP(&cluster.Name, "name", "n", "", "name of the cluster")
+	createCmd.Flags().StringVarP(&cluster.Arch, "arch", "a", "aarch64", "the architecture of the VM (supported by Lima). Eg: aarch64, s390x")
 	createCmd.Flags().StringVarP(&cluster.Template, "template", "t", "./hashibox.yaml", "name of lima template for the VMs")
 	createCmd.Flags().StringSliceVarP(&cluster.EnvVars, "env", "e", []string{}, "provide environment vars in the for key=value (can be used multiple times)")
 	createCmd.Flags().StringVarP(&cluster.ImgPath, "image", "i", "", "path to the cqow2 images to be used for the VMs, overriding the one in the template")
