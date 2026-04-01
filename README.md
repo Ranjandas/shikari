@@ -41,6 +41,8 @@ $ shikari create \
     --env NOMAD_LICENSE=$(cat nomad.hclic)
 ```
 
+If available, license environment variables will be automatically configured. See [License Auto-Loading](#license-auto-loading) for more details.
+
 ### List
 
 The `list` command is used to list the clusters and their VMs. You can get VMs of a specific cluster by passing the `--name/-n` flag.
@@ -160,6 +162,14 @@ $ shikari destroy -f -n murphy
 #### List
 
 Lists licenses available for auto-loading and the environment variable they may populate.
+
+## License Auto-Loading
+
+License files (`*.hclic`) found in `~/.shikari` will be read and used to automatically populate license environment variables.
+
+Files should be named for the product they're for, i.e. `~/.shikari/consul.hclic`. This file would be used to populate the `CONSUL_LICENSE` environment variable.
+
+If a license environment variable is specified manually, e.g. `--env CONSUL_LICENSE=$(cat scenario_specific_consul_license.hclic)`, auto-loading will be skipped for that product.
 
 ## Feedback
 

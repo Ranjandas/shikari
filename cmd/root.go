@@ -18,8 +18,11 @@ package cmd
 import (
 	"os"
 
+	"github.com/ranjandas/shikari/app/shikari"
 	"github.com/spf13/cobra"
 )
+
+var cluster shikari.ShikariCluster
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{

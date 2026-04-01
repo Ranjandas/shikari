@@ -23,6 +23,7 @@ $ shikari create --name murphy --servers 3  --clients 3 --template hashibox --en
 The above command will create a 3 server and 3 client cluster, each vm
 carrying the name as a prefix to easily identify.
 `,
+	PreRunE: loadLicenses,
 	Run: func(cmd *cobra.Command, args []string) {
 		if len(lima.GetInstancesByPrefix(cluster.Name)) > 0 {
 			fmt.Printf("Cluster %s alredy exist!", cluster.Name)
@@ -42,6 +43,7 @@ func init() {
 	createCmd.Flags().StringVarP(&cluster.Template, "template", "t", "./hashibox.yaml", "name of lima template for the VMs")
 	createCmd.Flags().StringSliceVarP(&cluster.EnvVars, "env", "e", []string{}, "provide environment vars in the for key=value (can be used multiple times)")
 	createCmd.Flags().StringVarP(&cluster.ImgPath, "image", "i", "", "path to the cqow2 images to be used for the VMs, overriding the one in the template")
+
 	createCmd.MarkFlagRequired("name")
 	createCmd.MarkFlagRequired("servers")
 }
