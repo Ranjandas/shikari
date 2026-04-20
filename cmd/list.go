@@ -6,6 +6,7 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"text/tabwriter"
@@ -72,6 +73,38 @@ func getImageLocation(vm lima.LimaVM) string {
 			location = image.Location
 		}
 	}
+
+	// If location is empty, return it as-is
+	if location == "" {
+		return location
+	}
+
+	// Expand tilde to home directory if present
+	expandedPath := location
+	if strings.HasPrefix(location, "~/") {
+		homeDir, err := os.UserHomeDir()
+		if err == nil {
+			expandedPath = filepath.Join(homeDir, location[2:])
+		}
+	}
+
+	// Check if the expanded location is a symlink and resolve to absolute path
+	fileInfo, err := os.Lstat(expandedPath)
+	if err != nil {
+		// If we can't stat the file, return the original location
+		return location
+	}
+
+	// If it's a symlink, resolve it to the absolute path
+	if fileInfo.Mode()&os.ModeSymlink != 0 {
+		resolvedPath, err := filepath.EvalSymlinks(expandedPath)
+		if err != nil {
+			// If we can't resolve the symlink, return the original location
+			return location
+		}
+		return resolvedPath
+	}
+
 	return location
 }
 
