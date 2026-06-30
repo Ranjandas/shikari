@@ -19,7 +19,7 @@ var destroyCmd = &cobra.Command{
 	Long: `Destroys VM's that belong to the named cluster
 
 	Exmple:
-	
+
 	$ shikari destroy -n murphy`,
 	Run: func(cmd *cobra.Command, args []string) {
 		//fmt.Println("destroy called")
@@ -54,6 +54,7 @@ func init() {
 
 	destroyCmd.Flags().StringVarP(&cluster.Name, "name", "n", "", "name of the cluster")
 	destroyCmd.Flags().BoolVarP(&cluster.Force, "force", "f", false, "force destruction of the cluster even when VMs are running")
+	destroyCmd.MarkFlagRequired("name")
 }
 
 func destroyVM(instances []lima.LimaVM, force bool) {
