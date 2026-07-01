@@ -18,10 +18,9 @@ The following are the pre-requisites for using Shikari
 
 The Shikari binaries are available to download from GH releases. Please download the binary from here: https://github.com/Ranjandas/shikari/releases/latest
 
-
 ## Usage
 
-Shikari can be used to create clusters of any size depending on the capacity of the host on which the VMs are provisioned. Shikari under the hood invokes Lima commands to provision VMs. 
+Shikari can be used to create clusters of any size depending on the capacity of the host on which the VMs are provisioned. Shikari under the hood invokes Lima commands to provision VMs.
 
 The following sub-sections (named after various subcommands) shows how to use Shikari to create, use and destroy clusters.
 
@@ -41,6 +40,8 @@ $ shikari create \
     --env CONSUL_LICENSE=$(cat consul.hclic) \
     --env NOMAD_LICENSE=$(cat nomad.hclic)
 ```
+
+If available, license environment variables will be automatically configured. See [License Auto-Loading](#license-auto-loading) for more details.
 
 ### List
 
@@ -95,10 +96,9 @@ lima-murphy-srv-01  192.168.105.13:8301  alive   server  1.18.2  2         murph
 lima-murphy-cli-01  192.168.105.10:8301  alive   client  1.18.2  2         murphy  default    <default>
 ```
 
-
 ### Stop
 
-The `stop` command stops all the VMs in a cluster to save resources. 
+The `stop` command stops all the VMs in a cluster to save resources.
 
 ```
 $ shikari stop -n <cluster-name>
@@ -157,6 +157,19 @@ The `destroy` command destroys the cluster as long as all the VMs in the cluster
 $ shikari destroy -f -n murphy
 ```
 
+### License
+
+#### List
+
+Lists licenses available for auto-loading and the environment variable they may populate.
+
+## License Auto-Loading
+
+License files (`*.hclic`) found in `~/.shikari` will be read and used to automatically populate license environment variables.
+
+Files should be named for the product they're for, i.e. `~/.shikari/consul.hclic`. This file would be used to populate the `CONSUL_LICENSE` environment variable.
+
+If a license environment variable is specified manually, e.g. `--env CONSUL_LICENSE=$(cat scenario_specific_consul_license.hclic)`, auto-loading will be skipped for that product.
 
 ## Feedback
 

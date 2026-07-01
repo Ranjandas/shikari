@@ -4,21 +4,19 @@ Copyright © 2024 Ranjandas Athiyanathum Poyil thejranjan@gmail.com
 package cmd
 
 import (
-	shikari "github.com/ranjandas/shikari/app/shikari"
 	"github.com/spf13/cobra"
 )
 
 // scaleCmd represents the scale command
 var scaleCmd = &cobra.Command{
-	Use:   "scale",
-	Short: "Scale the number of VMs in the cluster",
-	Long:  `Scale the number of VMs in the cluster`,
+	Use:     "scale",
+	Short:   "Scale the number of VMs in the cluster",
+	Long:    `Scale the number of VMs in the cluster`,
+	PreRunE: loadLicenses,
 	Run: func(cmd *cobra.Command, args []string) {
 		cluster.CreateCluster(true)
 	},
 }
-
-var cluster shikari.ShikariCluster
 
 func init() {
 	rootCmd.AddCommand(scaleCmd)
