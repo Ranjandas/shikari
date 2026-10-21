@@ -88,6 +88,16 @@ export NOMAD_ADDR=https://192.168.105.13:4646
 export NOMAD_TOKEN=00000000-0000-0000-0000-000000000000
 ```
 
+The supported products are `consul`, `nomad`, `vault`, `boundary` and `k3s`, and several can be passed separated by commas (eg: `consul,nomad`). For `k3s`, the kubeconfig is copied from `srv-01` and `KUBECONFIG` is set to it.
+
+| Flag | Effect |
+|---|---|
+| `-t`, `--tls` | Use HTTPS and set the CA cert variable (eg: `CONSUL_CACERT`) |
+| `-a`, `--acl` | Set the bootstrap token variable (Consul and Nomad) |
+| `-i`, `--insecure` | Skip TLS verification (eg: `CONSUL_HTTP_SSL_VERIFY=false`) |
+| `-u`, `--unset` | Print `unset` commands for the variables instead of `export` |
+| `-s`, `--server` | Point at this server instead of the first running one |
+
 The variables point at the first running server. Use `--server` (`-s`) to pick another one, eg: `shikari env -n murphy -s srv-02 nomad`.
 
 Use `eval` to set these environment variables in the current shell session.
@@ -140,6 +150,8 @@ The `exec` command takes a command as argument and executes the command against 
 | `-c` | Runs only against the `client` VMs |
 | `-i <instance name>` | Targets a specific instance by its name (eg: `srv-01` or `cli-02`) |
 
+Pass `-q` to print only the output of the commands, without the `Running command against` headers.
+
 One of the flags is required. A single argument is run by a shell inside the VM, so it can use pipes and variables (eg: `'cat /etc/hosts | grep srv'`). Multiple arguments are run as-is, keeping their quoting (eg: `-- sh -c 'echo $HOSTNAME'`). `exec` exits with the worst exit status of the remote commands.
 
 ```
@@ -156,6 +168,22 @@ enabled
 Running command against: murphy-srv-03
 
 enabled
+```
+
+### Scale
+
+The `scale` command adds or removes VMs in an existing cluster. Pass the number of servers (`-s`) and/or clients (`-c`) the cluster should have; a role that isn't passed keeps its current count.
+
+```
+$ shikari scale -n murphy -c 5
+```
+
+New VMs take the lowest free numbers (eg: `cli-02` if it was removed earlier), and are created with the cluster's template and architecture unless `-t` or `-a` is passed. `-e` and `-i` work as they do for `create`.
+
+Scaling down removes the highest numbered VMs, and needs `-f` to confirm. Scaling both roles to 0 is refused, use `destroy` instead.
+
+```
+$ shikari scale -n murphy -s 1 -f
 ```
 
 ### Destroy
