@@ -1,6 +1,7 @@
 package shikari
 
 import (
+	"path/filepath"
 	"testing"
 
 	lima "github.com/ranjandas/shikari/app/lima"
@@ -43,5 +44,48 @@ func TestTargetCounts(t *testing.T) {
 		if servers != tt.wantServers || clients != tt.wantClients {
 			t.Errorf("%s: targetCounts = (%d, %d), want (%d, %d)", tt.name, servers, clients, tt.wantServers, tt.wantClients)
 		}
+	}
+}
+
+func TestTemplateLocator(t *testing.T) {
+	abs, _ := filepath.Abs("hashibox.yaml")
+
+	tests := map[string]string{
+		"hashibox":                   "template://hashibox",
+		"template://hashibox":        "template://hashibox",
+		"https://example.com/x.yaml": "https://example.com/x.yaml",
+		"hashibox.yaml":              abs,
+		"/tmp/Hashibox.YML":          "/tmp/Hashibox.YML",
+	}
+
+	for in, want := range tests {
+		got, err := templateLocator(in)
+		if err != nil || got != want {
+			t.Errorf("templateLocator(%q) = %q, %v, want %q", in, got, err, want)
+		}
+	}
+}
+
+func TestInheritFrom(t *testing.T) {
+	vm := lima.LimaVM{
+		Name:   "dev-srv-01",
+		Arch:   "x86_64",
+		Config: lima.Config{Env: map[string]string{"SHIKARI_TEMPLATE": "template://hashibox"}},
+	}
+
+	c := ShikariCluster{Name: "dev", Arch: "aarch64", Template: "./hashibox.yaml"}
+	if w := c.InheritFrom(vm, false, false); w != "" || c.Arch != "x86_64" || c.Template != "template://hashibox" {
+		t.Errorf("InheritFrom = %+v, warning %q", c, w)
+	}
+
+	c = ShikariCluster{Name: "dev", Arch: "aarch64", Template: "./other.yaml"}
+	if w := c.InheritFrom(vm, true, true); w != "" || c.Arch != "aarch64" || c.Template != "./other.yaml" {
+		t.Errorf("InheritFrom with flags set = %+v, warning %q", c, w)
+	}
+
+	old := lima.LimaVM{Name: "dev-srv-01", Arch: "x86_64"}
+	c = ShikariCluster{Name: "dev", Arch: "aarch64", Template: "./hashibox.yaml"}
+	if w := c.InheritFrom(old, false, false); w == "" || c.Template != "./hashibox.yaml" || c.Arch != "x86_64" {
+		t.Errorf("InheritFrom without recorded template = %+v, warning %q", c, w)
 	}
 }
