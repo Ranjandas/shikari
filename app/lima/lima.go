@@ -146,7 +146,8 @@ func ExecLimaVM(vmName string, command string, quiet bool) {
 		fmt.Printf("\nRunning command against: %s\n\n", vmName)
 	}
 
-	cmd := exec.Command("/bin/sh", "-c", fmt.Sprintf("limactl shell %s %s", vmName, command))
+	// The command is interpreted by a shell inside the VM, never by a shell on the host
+	cmd := exec.Command("limactl", "shell", vmName, "sh", "-c", command)
 
 	// Set the output to os.Stdout and os.Stderr
 	cmd.Stdout = os.Stdout
@@ -159,12 +160,14 @@ func ExecLimaVM(vmName string, command string, quiet bool) {
 	}
 }
 
-func SpawnLimaVM(vmName string, arch string, tmpl string, yqExpression string, wg *sync.WaitGroup, errCh chan<- error) {
+// SpawnLimaVM creates and starts a Lima VM. env is added to the environment of
+// limactl, so that the yq expression can read values with strenv().
+func SpawnLimaVM(vmName string, arch string, tmpl string, yqExpression string, env []string, wg *sync.WaitGroup, errCh chan<- error) {
 	defer wg.Done()
 
 	// Define the command to spawn a Lima VM
-	limaCmd := fmt.Sprintf("limactl start --name %s %s --arch %s --tty=false --set '%s'", vmName, tmpl, arch, yqExpression)
-	cmd := exec.Command("/bin/sh", "-c", limaCmd)
+	cmd := exec.Command("limactl", "start", "--name", vmName, tmpl, "--arch", arch, "--tty=false", "--set", yqExpression)
+	cmd.Env = append(os.Environ(), env...)
 
 	// Set the output to os.Stdout and os.Stderr
 	cmd.Stdout = os.Stdout
@@ -181,8 +184,7 @@ func SpawnLimaVM(vmName string, arch string, tmpl string, yqExpression string, w
 
 func ShellLimaVM(vmName string) {
 
-	limaCmd := fmt.Sprintf("limactl shell '%s'", vmName)
-	cmd := exec.Command("/bin/sh", "-c", limaCmd)
+	cmd := exec.Command("limactl", "shell", vmName)
 
 	// Set the input to os.Stdin, output to os.Stdout and os.Stderr
 	cmd.Stdin = os.Stdin
@@ -222,8 +224,7 @@ func (vm LimaVM) GetIPAddress() string {
 		return ""
 	}
 
-	command := "ip -j addr show dev lima0"
-	cmd := exec.Command("/bin/sh", "-c", fmt.Sprintf("limactl shell %s %s", vm.Name, command))
+	cmd := exec.Command("limactl", "shell", vm.Name, "ip", "-j", "addr", "show", "dev", "lima0")
 
 	output, err := cmd.Output()
 
