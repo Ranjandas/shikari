@@ -293,7 +293,7 @@ func (c ClientConfigOpts) copyK3SKubeConfig() error {
 
 	vm := lima.GetInstance(fmt.Sprintf("%s-srv-01", c.Name))
 
-	cmd := exec.Command("/bin/sh", "-c", fmt.Sprintf("limactl copy %s:/etc/rancher/k3s/k3s.yaml %s", vm.Name, vm.Dir))
+	cmd := exec.Command("limactl", "copy", vm.Name+":/etc/rancher/k3s/k3s.yaml", vm.Dir)
 
 	// Run the command
 	err := cmd.Run()
