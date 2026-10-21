@@ -44,7 +44,6 @@ var stopCmd = &cobra.Command{
 func init() {
 	rootCmd.AddCommand(stopCmd)
 
-	stopCmd.Flags().StringVarP(&cluster.Name, "name", "n", "", "name of the cluster")
-	stopCmd.MarkFlagRequired("name")
+	addNameFlag(stopCmd, true)
 
 }

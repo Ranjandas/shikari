@@ -39,7 +39,7 @@ $ shikari exec -n murphy -i srv-01 -- sh -c 'echo $HOSTNAME'`,
 		execClients, _ := cmd.Flags().GetBool("clients")
 		execInstance, _ := cmd.Flags().GetString("instance")
 
-		clusterName, _ := cmd.Flags().GetString("name")
+		clusterName := cluster.Name
 
 		if len(args) == 0 {
 			return fmt.Errorf("no commands provided as args to execute")
@@ -126,7 +126,7 @@ func init() {
 	execCmd.Flags().BoolP("servers", "s", false, "run commands against server instances in the cluster")
 	execCmd.Flags().BoolP("all", "a", false, "run commands against all instances in the cluster")
 	execCmd.Flags().StringP("instance", "i", "", "name of the specific instance to run the command against")
-	execCmd.Flags().StringP("name", "n", "", "name of the cluster to run the command against")
+	addNameFlag(execCmd, true)
 
 	execCmd.MarkFlagsMutuallyExclusive("clients", "servers", "all", "instance")
 

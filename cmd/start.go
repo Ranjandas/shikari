@@ -44,7 +44,6 @@ $ shikari start -n murphy`,
 func init() {
 	rootCmd.AddCommand(startCmd)
 
-	startCmd.Flags().StringVarP(&cluster.Name, "name", "n", "", "name of the cluster")
-	startCmd.MarkFlagRequired("name")
+	addNameFlag(startCmd, true)
 
 }

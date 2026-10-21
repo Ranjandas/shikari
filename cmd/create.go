@@ -45,12 +45,11 @@ func init() {
 
 	createCmd.Flags().Uint8VarP(&cluster.NumServers, "servers", "s", 1, "number of servers")
 	createCmd.Flags().Uint8VarP(&cluster.NumClients, "clients", "c", 0, "number of clients")
-	createCmd.Flags().StringVarP(&cluster.Name, "name", "n", "", "name of the cluster")
+	addNameFlag(createCmd, true)
 	createCmd.Flags().StringVarP(&cluster.Arch, "arch", "a", defaultArch(), "the architecture of the VM (supported by Lima), defaults to the host architecture. Eg: aarch64, x86_64")
 	createCmd.Flags().StringVarP(&cluster.Template, "template", "t", "./hashibox.yaml", "name of lima template for the VMs")
 	createCmd.Flags().StringSliceVarP(&cluster.EnvVars, "env", "e", []string{}, "provide environment vars in the for key=value (can be used multiple times)")
 	createCmd.Flags().StringVarP(&cluster.ImgPath, "image", "i", "", "path to the disk image (qcow2 or raw) to be used for the VMs, overriding the one in the template")
 
-	createCmd.MarkFlagRequired("name")
 	createCmd.MarkFlagRequired("servers")
 }
