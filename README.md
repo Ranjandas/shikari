@@ -1,6 +1,6 @@
 # shikari
 
-Shikari is an opinionated tool that helps you create multi-vm clusters (primarly aimed at Nomad and Consul) using [Lima](https://lima-vm.io) as the underlying VM Manager.
+Shikari is an opinionated tool that helps you create multi-vm clusters (primarily aimed at Nomad and Consul) using [Lima](https://lima-vm.io) as the underlying VM Manager.
 
 Various scenarios built for Shikari is available here: https://github.com/Ranjandas/shikari-scenarios/
 
@@ -10,7 +10,7 @@ The following are the pre-requisites for using Shikari
 
 * Lima: Used for running VMs
 * QEMU [Optional]: Required if you are also baking images using packer
-* HashiCorp Packer: To build custom images (available in the shikar-scenarios/packer repository)
+* HashiCorp Packer: To build custom images (available in the shikari-scenarios/packer repository)
 * [socket_vmnet](https://github.com/lima-vm/socket_vmnet): Installed and configured as per Lima [requirements](https://lima-vm.io/docs/config/network/#socket_vmnet)
 * [Shikari Scenarios](https://github.com/Ranjandas/shikari-scenarios/): This is the primary source of various re-usable scenarios to use with Shikari
 
@@ -62,7 +62,7 @@ murphy     murphy-srv-03    aarch64    192.168.105.15    Running    nomad-consul
 
 #### Helper Variables
 
-When spinning up the VM's, Shikari injects a few environment variables into each VM's, which would give some additional context to the provisioning scripts that would include:
+When spinning up the VMs, Shikari injects a few environment variables into each VM, which would give some additional context to the provisioning scripts that would include:
 
 * What kind of node the script is running on (injected as `SHIKARI_VM_MODE` env variable)
 * Name of the cluster (injected as `SHIKARI_CLUSTER_NAME` env variable)
@@ -79,7 +79,7 @@ When spinning up the VM's, Shikari injects a few environment variables into each
 
 ### Env
 
-The `env` command prints various Nomad and Consul environment variables that helps you interact with the Nomad and Consul Clusters form the Host (using client binaries).
+The `env` command prints various Nomad and Consul environment variables that helps you interact with the Nomad and Consul Clusters from the Host (using client binaries).
 
 ```
 $ shikari env -n murphy --tls --acl consul
