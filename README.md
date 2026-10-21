@@ -58,7 +58,7 @@ murphy     murphy-srv-02    aarch64    192.168.105.14    Running    nomad-consul
 murphy     murphy-srv-03    aarch64    192.168.105.15    Running    nomad-consul-quickstart    100         4             4       /Users/ranjan/workspace/github/shikari-scenarios/packer/.artifacts/c-1.18-n-1.7/c-1.18-n-1.7.qcow2
 ```
 
-`IP` is the address the host can reach the VM on, and is empty for stopped VMs. `SCENARIO` comes from the `SHIKARI_SCENARIO_NAME` env variable of the template. Pass `--no-header` to leave out the header line, eg: for scripts.
+`IP` is the address the host can reach the VM on, and is empty for stopped VMs. `SCENARIO` comes from the `SHIKARI_SCENARIO_NAME` env variable. Shikari sets it at create time to the template's file name without the extension (or to its directory for templates named `hashibox.yaml`, as in shikari-scenarios), unless the template or `--env` sets it. Pass `--no-header` to leave out the header line, eg: for scripts.
 
 #### Helper Variables
 

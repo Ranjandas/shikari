@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path"
 	"path/filepath"
 	"regexp"
 	"sort"
@@ -62,6 +63,9 @@ func (c ShikariCluster) CreateCluster(scale bool) error {
 
 	// record the template, so that scale can create matching VMs
 	setter.setEnv("SHIKARI_TEMPLATE", tmpl)
+
+	// name the scenario after the template, unless the template names it
+	setter.setEnvDefault("SHIKARI_SCENARIO_NAME", scenarioName(tmpl))
 
 	// append server and client count variables
 	targetServers, targetClients := c.targetCounts(scale, serverCount, clientCount)
@@ -262,6 +266,29 @@ func templateLocator(template string) (string, error) {
 	default:
 		return fmt.Sprintf("template://%s", template), nil
 	}
+}
+
+// scenarioName returns the scenario name for a template: its file name
+// without the extension, eg: nomad for template://nomad or ./nomad.yaml.
+// Templates of shikari-scenarios are all named hashibox.yaml, so those are
+// named after their directory, eg: nomad-consul-quickstart for
+// scenarios/nomad-consul-quickstart/hashibox.yaml.
+func scenarioName(template string) string {
+	if _, rest, found := strings.Cut(template, "://"); found {
+		template = rest
+	}
+
+	template = strings.TrimRight(template, "/")
+	name := path.Base(template)
+	name = strings.TrimSuffix(name, path.Ext(name))
+
+	if name == "hashibox" {
+		if dir := path.Base(path.Dir(template)); dir != "." && dir != "/" {
+			return dir
+		}
+	}
+
+	return name
 }
 
 // InheritFrom makes a scale request create VMs like the existing VM of the

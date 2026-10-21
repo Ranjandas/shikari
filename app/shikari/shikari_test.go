@@ -91,6 +91,24 @@ func TestTemplateLocator(t *testing.T) {
 	}
 }
 
+func TestScenarioName(t *testing.T) {
+	tests := map[string]string{
+		"template://nomad":    "nomad",
+		"template://hashibox": "hashibox",
+		"/home/me/nomad.yaml": "nomad",
+		"/home/me/scenarios/nomad-consul-quickstart/hashibox.yaml": "nomad-consul-quickstart",
+		"/hashibox.yaml": "hashibox",
+		"https://example.com/scenarios/vault/hashibox.yml": "vault",
+		"https://example.com/k3s.yaml":                     "k3s",
+	}
+
+	for in, want := range tests {
+		if got := scenarioName(in); got != want {
+			t.Errorf("scenarioName(%q) = %q, want %q", in, got, want)
+		}
+	}
+}
+
 func TestInheritFrom(t *testing.T) {
 	vm := lima.LimaVM{
 		Name:   "dev-srv-01",

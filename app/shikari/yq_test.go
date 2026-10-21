@@ -72,3 +72,22 @@ func TestYQSetterClone(t *testing.T) {
 		t.Errorf("clone = %+v, want 2 entries", vm)
 	}
 }
+
+func TestYQSetterSetEnvDefault(t *testing.T) {
+	s := yqSetter{}
+	if err := s.setEnvDefault("SHIKARI_SCENARIO_NAME", "nomad"); err != nil {
+		t.Fatal(err)
+	}
+
+	want := ".env.SHIKARI_SCENARIO_NAME = (.env.SHIKARI_SCENARIO_NAME // strenv(SHIKARI_YQ_VALUE_0))"
+	if expr := s.expression(); expr != want {
+		t.Errorf("expression = %q, want %q", expr, want)
+	}
+	if s.env[0] != "SHIKARI_YQ_VALUE_0=nomad" {
+		t.Errorf("env[0] = %q", s.env[0])
+	}
+
+	if err := s.setEnvDefault("BAD KEY", "x"); err == nil {
+		t.Error("setEnvDefault accepted an invalid key")
+	}
+}
