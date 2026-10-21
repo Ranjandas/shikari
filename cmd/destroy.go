@@ -45,9 +45,8 @@ var destroyCmd = &cobra.Command{
 func init() {
 	rootCmd.AddCommand(destroyCmd)
 
-	destroyCmd.Flags().StringVarP(&cluster.Name, "name", "n", "", "name of the cluster")
+	addNameFlag(destroyCmd, true)
 	destroyCmd.Flags().BoolVarP(&cluster.Force, "force", "f", false, "force destruction of the cluster even when VMs are running")
-	destroyCmd.MarkFlagRequired("name")
 }
 
 // notStopped returns "name (status)" for every instance that is not stopped,
