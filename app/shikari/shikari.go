@@ -94,8 +94,9 @@ func (c ShikariCluster) CreateCluster(scale bool) error {
 	setter.setEnv("SHIKARI_CLUSTER_NAME", c.Name)
 
 	// append server and client count variables
-	setter.setEnv("SHIKARI_SERVER_COUNT", fmt.Sprintf("%d", c.NumServers))
-	setter.setEnv("SHIKARI_CLIENT_COUNT", fmt.Sprintf("%d", c.NumClients))
+	targetServers, targetClients := c.targetCounts(scale, serverCount, clientCount)
+	setter.setEnv("SHIKARI_SERVER_COUNT", fmt.Sprintf("%d", targetServers))
+	setter.setEnv("SHIKARI_CLIENT_COUNT", fmt.Sprintf("%d", targetClients))
 	setter.setEnv("SHIKARI_LAUNCH_MODE", launchMode(scale))
 
 	// append user defined environment variable
@@ -267,6 +268,24 @@ func (c ShikariCluster) validateName() bool {
 	regex, _ := regexp.Compile(pattern)
 
 	return regex.MatchString(c.Name)
+}
+
+// targetCounts returns the number of servers and clients the cluster will
+// have once the command completes. When scaling, a count of 0 means the flag
+// was not given and that role keeps its current count.
+func (c ShikariCluster) targetCounts(scale bool, serverCount, clientCount uint8) (uint8, uint8) {
+	servers, clients := c.NumServers, c.NumClients
+
+	if scale {
+		if servers == 0 {
+			servers = serverCount
+		}
+		if clients == 0 {
+			clients = clientCount
+		}
+	}
+
+	return servers, clients
 }
 
 func launchMode(scale bool) string {
