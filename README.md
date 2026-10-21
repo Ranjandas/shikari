@@ -8,11 +8,17 @@ Various scenarios built for Shikari is available here: https://github.com/Ranjan
 
 The following are the pre-requisites for using Shikari
 
-* Lima: Used for running VMs
+* Lima v0.17.0 or later: Used for running VMs. Shikari passes `--arch` and `--set` to `limactl start`, and `--arch` was added in v0.17.0
 * QEMU [Optional]: Required if you are also baking images using packer
 * HashiCorp Packer: To build custom images (available in the shikari-scenarios/packer repository)
 * [socket_vmnet](https://github.com/lima-vm/socket_vmnet): Installed and configured as per Lima [requirements](https://lima-vm.io/docs/config/network/#socket_vmnet)
 * [Shikari Scenarios](https://github.com/Ranjandas/shikari-scenarios/): This is the primary source of various re-usable scenarios to use with Shikari
+
+### Supported platforms
+
+Shikari is made for macOS, and binaries are published for Apple Silicon and Intel Macs.
+
+Linux binaries are published too, but Linux isn't tested. socket_vmnet only runs on macOS, so on Linux the template has to use another Lima network that gives each VM an address the host can reach.
 
 ## Install
 
