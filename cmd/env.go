@@ -48,6 +48,8 @@ export NOMAD_CACERT=xxx/nomad-agent-ca.pem`,
 		// Set ClientConfig Name same as Cluster Name
 		// TODO: Refcator the flags by unifying common flags
 		clientConfigOpts.Name = cluster.Name
+		// List the VMs once, for all the products
+		clientConfigOpts.instances = instances
 		products := args[0]
 
 		var errs []error
@@ -83,6 +85,9 @@ type ClientConfigOpts struct {
 	ACL      bool
 	Insecure bool
 	Unset    bool
+
+	instances  []lima.LimaVM
+	serverAddr string
 }
 
 var clientConfigOpts ClientConfigOpts
@@ -96,7 +101,7 @@ func isValidProduct(product string) bool {
 	return false
 }
 
-func (c ClientConfigOpts) printClientConfigEnvs(product string) error {
+func (c *ClientConfigOpts) printClientConfigEnvs(product string) error {
 	var vars string
 	var err error
 
@@ -121,14 +126,15 @@ func (c ClientConfigOpts) printClientConfigEnvs(product string) error {
 	return nil
 }
 
-func (c ClientConfigOpts) getRandomServerAddress() (string, error) {
-	instances, err := lima.GetClusterInstances(c.Name)
-	if err != nil {
-		return "", err
+// getRandomServerAddress returns the address of a random running server. The
+// server is picked once, so all the products point at the same one.
+func (c *ClientConfigOpts) getRandomServerAddress() (string, error) {
+	if c.serverAddr != "" {
+		return c.serverAddr, nil
 	}
 
 	// always get the instances of type server "-srv"
-	runningInstances := lima.GetInstancesByStatus(lima.GetServerInstances(instances), "running")
+	runningInstances := lima.GetInstancesByStatus(lima.GetServerInstances(c.instances), "running")
 
 	if !(len(runningInstances) > 0) {
 		return "", fmt.Errorf("there are no running servers in the cluster %s", c.Name)
@@ -142,10 +148,24 @@ func (c ClientConfigOpts) getRandomServerAddress() (string, error) {
 		return "", fmt.Errorf("could not get the IP address of %s", server.Name)
 	}
 
+	c.serverAddr = addr
 	return addr, nil
 }
 
-func (c ClientConfigOpts) getConsulVariables() (string, error) {
+// firstServer returns the cluster's <name>-srv-01 VM.
+func (c *ClientConfigOpts) firstServer() (lima.LimaVM, bool) {
+	name := fmt.Sprintf("%s-srv-01", c.Name)
+
+	for _, vm := range c.instances {
+		if vm.Name == name {
+			return vm, true
+		}
+	}
+
+	return lima.LimaVM{}, false
+}
+
+func (c *ClientConfigOpts) getConsulVariables() (string, error) {
 
 	if c.Unset {
 		return "unset CONSUL_HTTP_ADDR\nunset CONSUL_HTTP_TOKEN\nunset CONSUL_HTTP_SSL_VERIFY\nunset CONSUL_CACERT", nil
@@ -190,7 +210,7 @@ func (c ClientConfigOpts) getConsulVariables() (string, error) {
 	return combinedVars, nil
 }
 
-func (c ClientConfigOpts) getNomadVariables() (string, error) {
+func (c *ClientConfigOpts) getNomadVariables() (string, error) {
 
 	if c.Unset {
 		return "unset NOMAD_ADDR\nunset NOMAD_TOKEN\nunset NOMAD_SKIP_VERIFY\nunset NOMAD_CACERT", nil
@@ -234,7 +254,7 @@ func (c ClientConfigOpts) getNomadVariables() (string, error) {
 	return combinedVars, nil
 }
 
-func (c ClientConfigOpts) getVaultVariables() (string, error) {
+func (c *ClientConfigOpts) getVaultVariables() (string, error) {
 
 	if c.Unset {
 		return "unset VAULT_ADDR\nunset VAULT_SKIP_VERIFY\nunset VAULT_CACERT", nil
@@ -272,7 +292,7 @@ func (c ClientConfigOpts) getVaultVariables() (string, error) {
 	return combinedVars, nil
 }
 
-func (c ClientConfigOpts) getBoundaryVariables() (string, error) {
+func (c *ClientConfigOpts) getBoundaryVariables() (string, error) {
 	// ref: https://developer.hashicorp.com/boundary/docs/commands#environment-variables
 
 	if c.Unset {
@@ -311,19 +331,15 @@ func (c ClientConfigOpts) getBoundaryVariables() (string, error) {
 	return combinedVars, nil
 }
 
-func (c ClientConfigOpts) getK3SVariables() (string, error) {
+func (c *ClientConfigOpts) getK3SVariables() (string, error) {
 	var k3sKubeConfig string
 
-	vm, err := lima.GetInstance(fmt.Sprintf("%s-srv-01", c.Name))
-	if err != nil {
-		return "", err
-	}
-
-	if vm.Name == "" {
+	vm, ok := c.firstServer()
+	if !ok {
 		return "", fmt.Errorf("instance %s-srv-01 not found", c.Name)
 	}
 
-	err = c.copyK3SKubeConfig(vm)
+	err := c.copyK3SKubeConfig(vm)
 	if err != nil {
 		return "", fmt.Errorf("error copying KUBECONFIG for cluster %s: %w", c.Name, err)
 	}
@@ -333,7 +349,7 @@ func (c ClientConfigOpts) getK3SVariables() (string, error) {
 	return k3sKubeConfig, nil
 }
 
-func (c ClientConfigOpts) copyK3SKubeConfig(vm lima.LimaVM) error {
+func (c *ClientConfigOpts) copyK3SKubeConfig(vm lima.LimaVM) error {
 
 	cmd := exec.Command("limactl", "copy", vm.Name+":/etc/rancher/k3s/k3s.yaml", vm.Dir)
 
@@ -351,12 +367,9 @@ func (c ClientConfigOpts) copyK3SKubeConfig(vm lima.LimaVM) error {
 	return err
 }
 
-func (c ClientConfigOpts) getTLSCaCertPath(product string) string {
-	firstInstance := fmt.Sprintf("%s-srv-01", c.Name)
-
-	vm, err := lima.GetInstance(firstInstance)
-
-	if err != nil || vm.Name == "" {
+func (c *ClientConfigOpts) getTLSCaCertPath(product string) string {
+	vm, ok := c.firstServer()
+	if !ok {
 		return "" //There are no VMs in the cluster
 	}
 
