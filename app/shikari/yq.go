@@ -37,6 +37,21 @@ func (s *yqSetter) setEnv(key string, value string) error {
 	return nil
 }
 
+// setEnvDefault sets an environment variable in the Lima config of the VM,
+// unless the template already sets it.
+func (s *yqSetter) setEnvDefault(key string, value string) error {
+	if !envKeyPattern.MatchString(key) {
+		return fmt.Errorf("invalid environment variable name %q", key)
+	}
+
+	path := fmt.Sprintf(".env.%s", key)
+	valueKey := fmt.Sprintf("SHIKARI_YQ_VALUE_%d", len(s.env))
+
+	s.exprs = append(s.exprs, fmt.Sprintf("%s = (%s // strenv(%s))", path, path, valueKey))
+	s.env = append(s.env, fmt.Sprintf("%s=%s", valueKey, value))
+	return nil
+}
+
 func (s yqSetter) expression() string {
 	return strings.Join(s.exprs, " | ")
 }

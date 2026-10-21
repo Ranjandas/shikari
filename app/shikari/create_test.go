@@ -26,8 +26,9 @@ func startedVMs(calls [][]string) []string {
 	return names
 }
 
-// injectedEnv resolves the `.env.X = strenv(Y)` parts of the --set expression
-// of vmName with the environment limactl ran with.
+// injectedEnv resolves the `.env.X = strenv(Y)` and
+// `.env.X = (.env.X // strenv(Y))` parts of the --set expression of vmName
+// with the environment limactl ran with.
 func injectedEnv(t *testing.T, fake *limatest.Fake, calls [][]string, vmName string) map[string]string {
 	t.Helper()
 
@@ -44,7 +45,7 @@ func injectedEnv(t *testing.T, fake *limatest.Fake, calls [][]string, vmName str
 
 	env := fake.Env(vmName)
 	injected := map[string]string{}
-	for _, match := range regexp.MustCompile(`\.env\.(\w+) = strenv\((\w+)\)`).FindAllStringSubmatch(expression, -1) {
+	for _, match := range regexp.MustCompile(`\.env\.(\w+) = (?:\(\.env\.\w+ // )?strenv\((\w+)\)`).FindAllStringSubmatch(expression, -1) {
 		injected[match[1]] = env[match[2]]
 	}
 
@@ -76,13 +77,14 @@ func TestCreateClusterSpawnsEachVM(t *testing.T) {
 
 	env := injectedEnv(t, fake, calls, "murphy-cli-01")
 	want := map[string]string{
-		"SHIKARI_CLUSTER_NAME": "murphy",
-		"SHIKARI_TEMPLATE":     "template://hashibox",
-		"SHIKARI_SERVER_COUNT": "2",
-		"SHIKARI_CLIENT_COUNT": "1",
-		"SHIKARI_LAUNCH_MODE":  "create",
-		"SHIKARI_VM_MODE":      "client",
-		"CONSUL_LICENSE":       "a 'quoted' license",
+		"SHIKARI_CLUSTER_NAME":  "murphy",
+		"SHIKARI_TEMPLATE":      "template://hashibox",
+		"SHIKARI_SCENARIO_NAME": "hashibox",
+		"SHIKARI_SERVER_COUNT":  "2",
+		"SHIKARI_CLIENT_COUNT":  "1",
+		"SHIKARI_LAUNCH_MODE":   "create",
+		"SHIKARI_VM_MODE":       "client",
+		"CONSUL_LICENSE":        "a 'quoted' license",
 	}
 	if !reflect.DeepEqual(env, want) {
 		t.Errorf("murphy-cli-01 env = %v, want %v", env, want)
