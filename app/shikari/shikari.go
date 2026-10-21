@@ -85,13 +85,9 @@ func (c ShikariCluster) CreateCluster(scale bool) error {
 				return fmt.Errorf("cannot find the absolute path of the image %s: %w", c.ImgPath, err)
 			}
 
-			qcow2, err := isQCOW2(absolutePath)
-			if err != nil {
-				return fmt.Errorf("cannot read the image %s: %w", absolutePath, err)
-			}
-
-			if !qcow2 {
-				return fmt.Errorf("image %s is not of type qCOW2", absolutePath)
+			// The image format (qcow2, raw, ...) is left to Lima to validate
+			if err := checkImage(absolutePath); err != nil {
+				return err
 			}
 		}
 
@@ -193,28 +189,19 @@ func (c ShikariCluster) generateEnvArgs(setter *yqSetter) error {
 	return nil
 }
 
-func isQCOW2(filePath string) (bool, error) {
-	// Open the file
-	file, err := os.Open(filePath)
+// checkImage returns an error if the image file can't be used, eg: a typo in
+// --image.
+func checkImage(path string) error {
+	info, err := os.Stat(path)
 	if err != nil {
-		return false, err
-	}
-	defer file.Close()
-
-	// Read the first 4 bytes
-	header := make([]byte, 4)
-	_, err = file.Read(header)
-	if err != nil {
-		return false, err
+		return fmt.Errorf("cannot use the image: %w", err)
 	}
 
-	// Check if the header matches the QCOW2 magic number
-	qcow2Magic := []byte{'Q', 'F', 'I', 0xfb}
-	if string(header) == string(qcow2Magic) {
-		return true, nil
+	if info.IsDir() {
+		return fmt.Errorf("cannot use the image %s: it is a directory", path)
 	}
 
-	return false, nil
+	return nil
 }
 
 func (c ShikariCluster) getInstanceMode(instanceName string) string {
