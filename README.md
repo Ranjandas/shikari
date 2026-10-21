@@ -115,6 +115,8 @@ The `start` command starts all the VMs in a stopped cluster.
 $ shikari start -n <cluster-name>
 ```
 
+> NOTE: `create`, `scale`, `start`, `stop` and `destroy` work on up to 3 VMs at a time. Set `SHIKARI_PARALLELISM` to change that, eg: `SHIKARI_PARALLELISM=1` handles one VM after another. A `start` or a delete that fails is retried once.
+
 ### Shell
 
 > Introduced in v0.6.0

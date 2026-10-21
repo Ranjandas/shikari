@@ -7,7 +7,6 @@ import (
 	"os"
 	"os/exec"
 	"strings"
-	"sync"
 )
 
 func ListInstances() ([]LimaVM, error) {
@@ -88,9 +87,7 @@ func GetInstancesByStatus(instances []LimaVM, status string) []LimaVM {
 	return filteredInstances
 }
 
-func StopLimaVM(vmName string, wg *sync.WaitGroup, errCh chan<- error) {
-	defer wg.Done()
-
+func StopLimaVM(vmName string) error {
 	// Define the command to spawn a Lima VM
 	cmd := exec.Command("limactl", "stop", vmName)
 
@@ -100,16 +97,15 @@ func StopLimaVM(vmName string, wg *sync.WaitGroup, errCh chan<- error) {
 
 	// Run the command
 	if err := cmd.Run(); err != nil {
-		errCh <- fmt.Errorf("error stopping Lima VM %s: %w", vmName, err)
-		return
+		return fmt.Errorf("error stopping Lima VM %s: %w", vmName, err)
 	}
 
 	fmt.Printf("Lima VM %s stopped successfully.\n", vmName)
+
+	return nil
 }
 
-func StartLimaVM(vmName string, wg *sync.WaitGroup, errCh chan<- error) {
-	defer wg.Done()
-
+func StartLimaVM(vmName string) error {
 	// Define the command to spawn a Lima VM
 	cmd := exec.Command("limactl", "start", vmName)
 
@@ -119,16 +115,15 @@ func StartLimaVM(vmName string, wg *sync.WaitGroup, errCh chan<- error) {
 
 	// Run the command
 	if err := cmd.Run(); err != nil {
-		errCh <- fmt.Errorf("error starting Lima VM %s: %w", vmName, err)
-		return
+		return fmt.Errorf("error starting Lima VM %s: %w", vmName, err)
 	}
 
 	fmt.Printf("Lima VM %s started successfully.\n", vmName)
+
+	return nil
 }
 
-func DeleteLimaVM(vmName string, force bool, wg *sync.WaitGroup, errCh chan<- error) {
-	defer wg.Done()
-
+func DeleteLimaVM(vmName string, force bool) error {
 	cmd := exec.Command("limactl", "delete", vmName)
 
 	if force {
@@ -142,11 +137,12 @@ func DeleteLimaVM(vmName string, force bool, wg *sync.WaitGroup, errCh chan<- er
 
 	// Run the command
 	if err := cmd.Run(); err != nil {
-		errCh <- fmt.Errorf("error deleting Lima VM %s: %w", vmName, err)
-		return
+		return fmt.Errorf("error deleting Lima VM %s: %w", vmName, err)
 	}
 
 	fmt.Printf("Lima VM %s deleted successfully.\n", vmName)
+
+	return nil
 }
 
 // ExecLimaVM runs a command inside the VM. A single argument is a command line
@@ -186,9 +182,7 @@ func execArgs(vmName string, args []string) []string {
 
 // SpawnLimaVM creates and starts a Lima VM. env is added to the environment of
 // limactl, so that the yq expression can read values with strenv().
-func SpawnLimaVM(vmName string, arch string, tmpl string, yqExpression string, env []string, wg *sync.WaitGroup, errCh chan<- error) {
-	defer wg.Done()
-
+func SpawnLimaVM(vmName string, arch string, tmpl string, yqExpression string, env []string) error {
 	// Define the command to spawn a Lima VM
 	cmd := exec.Command("limactl", "start", "--name", vmName, tmpl, "--arch", arch, "--tty=false", "--set", yqExpression)
 	cmd.Env = append(os.Environ(), env...)
@@ -199,11 +193,12 @@ func SpawnLimaVM(vmName string, arch string, tmpl string, yqExpression string, e
 
 	// Run the command
 	if err := cmd.Run(); err != nil {
-		errCh <- fmt.Errorf("error spawning Lima VM %s: %w", vmName, err)
-		return
+		return fmt.Errorf("error spawning Lima VM %s: %w", vmName, err)
 	}
 
 	fmt.Printf("Lima VM %s spawned successfully.\n", vmName)
+
+	return nil
 }
 
 func ShellLimaVM(vmName string) error {
