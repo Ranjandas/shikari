@@ -13,10 +13,10 @@ import (
 // startCmd represents the start command
 var startCmd = &cobra.Command{
 	Use:   "start",
-	Short: "Starts VM's that belong to the named cluster",
-	Long: `Starts VM's that belong to the named cluster
+	Short: "Starts VMs that belong to the named cluster",
+	Long: `Starts VMs that belong to the named cluster
 
-Exmple:
+Example:
 
 $ shikari start -n murphy`,
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -44,7 +44,6 @@ $ shikari start -n murphy`,
 func init() {
 	rootCmd.AddCommand(startCmd)
 
-	startCmd.Flags().StringVarP(&cluster.Name, "name", "n", "", "name of the cluster")
-	startCmd.MarkFlagRequired("name")
+	addNameFlag(startCmd, true)
 
 }

@@ -14,12 +14,12 @@ import (
 // destroyCmd represents the destroy command
 var destroyCmd = &cobra.Command{
 	Use:   "destroy",
-	Short: "Destroys VM's that belong to the named cluster",
-	Long: `Destroys VM's that belong to the named cluster
+	Short: "Destroys VMs that belong to the named cluster",
+	Long: `Destroys VMs that belong to the named cluster
 
-	Exmple:
+Example:
 
-	$ shikari destroy -n murphy`,
+$ shikari destroy -n murphy`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		allInstances, err := lima.GetClusterInstances(cluster.Name)
 		if err != nil {
@@ -45,9 +45,8 @@ var destroyCmd = &cobra.Command{
 func init() {
 	rootCmd.AddCommand(destroyCmd)
 
-	destroyCmd.Flags().StringVarP(&cluster.Name, "name", "n", "", "name of the cluster")
+	addNameFlag(destroyCmd, true)
 	destroyCmd.Flags().BoolVarP(&cluster.Force, "force", "f", false, "force destruction of the cluster even when VMs are running")
-	destroyCmd.MarkFlagRequired("name")
 }
 
 // notStopped returns "name (status)" for every instance that is not stopped,

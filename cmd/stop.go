@@ -13,10 +13,10 @@ import (
 // stopCmd represents the stop command
 var stopCmd = &cobra.Command{
 	Use:   "stop",
-	Short: "Stops VM's that belong to the named cluster",
-	Long: `Stops VM's that belong to the named cluster
+	Short: "Stops VMs that belong to the named cluster",
+	Long: `Stops VMs that belong to the named cluster
 
-	Exmple:
+	Example:
 	
 	$ shikari stop -n murphy`,
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -44,7 +44,6 @@ var stopCmd = &cobra.Command{
 func init() {
 	rootCmd.AddCommand(stopCmd)
 
-	stopCmd.Flags().StringVarP(&cluster.Name, "name", "n", "", "name of the cluster")
-	stopCmd.MarkFlagRequired("name")
+	addNameFlag(stopCmd, true)
 
 }

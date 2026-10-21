@@ -1,6 +1,6 @@
 # shikari
 
-Shikari is an opinionated tool that helps you create multi-vm clusters (primarly aimed at Nomad and Consul) using [Lima](https://lima-vm.io) as the underlying VM Manager.
+Shikari is an opinionated tool that helps you create multi-vm clusters (primarily aimed at Nomad and Consul) using [Lima](https://lima-vm.io) as the underlying VM Manager.
 
 Various scenarios built for Shikari is available here: https://github.com/Ranjandas/shikari-scenarios/
 
@@ -10,7 +10,7 @@ The following are the pre-requisites for using Shikari
 
 * Lima: Used for running VMs
 * QEMU [Optional]: Required if you are also baking images using packer
-* HashiCorp Packer: To build custom images (available in the shikar-scenarios/packer repository)
+* HashiCorp Packer: To build custom images (available in the shikari-scenarios/packer repository)
 * [socket_vmnet](https://github.com/lima-vm/socket_vmnet): Installed and configured as per Lima [requirements](https://lima-vm.io/docs/config/network/#socket_vmnet)
 * [Shikari Scenarios](https://github.com/Ranjandas/shikari-scenarios/): This is the primary source of various re-usable scenarios to use with Shikari
 
@@ -48,18 +48,21 @@ If available, license environment variables will be automatically configured. Se
 The `list` command is used to list the clusters and their VMs. You can get VMs of a specific cluster by passing the `--name/-n` flag.
 
 ```
-$ CLUSTER       VM NAME             SATUS         DISK(GB)       MEMORY(GB)       CPUS       IMAGE
-murphy        murphy-cli-01       Running       100            4                4          /Users/ranjan/workspace/github/shikari-scenarios/packer/.artifacts/c-1.18-n-1.7/c-1.18-n-1.7.qcow2
-murphy        murphy-cli-02       Running       100            4                4          /Users/ranjan/workspace/github/shikari-scenarios/packer/.artifacts/c-1.18-n-1.7/c-1.18-n-1.7.qcow2
-murphy        murphy-cli-03       Running       100            4                4          /Users/ranjan/workspace/github/shikari-scenarios/packer/.artifacts/c-1.18-n-1.7/c-1.18-n-1.7.qcow2
-murphy        murphy-srv-01       Running       100            4                4          /Users/ranjan/workspace/github/shikari-scenarios/packer/.artifacts/c-1.18-n-1.7/c-1.18-n-1.7.qcow2
-murphy        murphy-srv-02       Running       100            4                4          /Users/ranjan/workspace/github/shikari-scenarios/packer/.artifacts/c-1.18-n-1.7/c-1.18-n-1.7.qcow2
-murphy        murphy-srv-03       Running       100            4                4          /Users/ranjan/workspace/github/shikari-scenarios/packer/.artifacts/c-1.18-n-1.7/c-1.18-n-1.7.qcow2
+$ shikari list -n murphy
+CLUSTER    VM NAME          ARCH       IP                STATUS     SCENARIO                   DISK(GB)    MEMORY(GB)    CPUS    IMAGE
+murphy     murphy-cli-01    aarch64    192.168.105.10    Running    nomad-consul-quickstart    100         4             4       /Users/ranjan/workspace/github/shikari-scenarios/packer/.artifacts/c-1.18-n-1.7/c-1.18-n-1.7.qcow2
+murphy     murphy-cli-02    aarch64    192.168.105.11    Running    nomad-consul-quickstart    100         4             4       /Users/ranjan/workspace/github/shikari-scenarios/packer/.artifacts/c-1.18-n-1.7/c-1.18-n-1.7.qcow2
+murphy     murphy-cli-03    aarch64    192.168.105.12    Running    nomad-consul-quickstart    100         4             4       /Users/ranjan/workspace/github/shikari-scenarios/packer/.artifacts/c-1.18-n-1.7/c-1.18-n-1.7.qcow2
+murphy     murphy-srv-01    aarch64    192.168.105.13    Running    nomad-consul-quickstart    100         4             4       /Users/ranjan/workspace/github/shikari-scenarios/packer/.artifacts/c-1.18-n-1.7/c-1.18-n-1.7.qcow2
+murphy     murphy-srv-02    aarch64    192.168.105.14    Running    nomad-consul-quickstart    100         4             4       /Users/ranjan/workspace/github/shikari-scenarios/packer/.artifacts/c-1.18-n-1.7/c-1.18-n-1.7.qcow2
+murphy     murphy-srv-03    aarch64    192.168.105.15    Running    nomad-consul-quickstart    100         4             4       /Users/ranjan/workspace/github/shikari-scenarios/packer/.artifacts/c-1.18-n-1.7/c-1.18-n-1.7.qcow2
 ```
+
+`IP` is the address the host can reach the VM on, and is empty for stopped VMs. `SCENARIO` comes from the `SHIKARI_SCENARIO_NAME` env variable of the template. Pass `--no-header` to leave out the header line, eg: for scripts.
 
 #### Helper Variables
 
-When spinning up the VM's, Shikari injects a few environment variables into each VM's, which would give some additional context to the provisioning scripts that would include:
+When spinning up the VMs, Shikari injects a few environment variables into each VM, which would give some additional context to the provisioning scripts that would include:
 
 * What kind of node the script is running on (injected as `SHIKARI_VM_MODE` env variable)
 * Name of the cluster (injected as `SHIKARI_CLUSTER_NAME` env variable)
@@ -76,7 +79,7 @@ When spinning up the VM's, Shikari injects a few environment variables into each
 
 ### Env
 
-The `env` command prints various Nomad and Consul environment variables that helps you interact with the Nomad and Consul Clusters form the Host (using client binaries).
+The `env` command prints various Nomad and Consul environment variables that helps you interact with the Nomad and Consul Clusters from the Host (using client binaries).
 
 ```
 $ shikari env -n murphy --tls --acl consul
@@ -87,6 +90,16 @@ $ shikari env -n murphy --tls --acl nomad
 export NOMAD_ADDR=https://192.168.105.13:4646
 export NOMAD_TOKEN=00000000-0000-0000-0000-000000000000
 ```
+
+The supported products are `consul`, `nomad`, `vault`, `boundary` and `k3s`, and several can be passed separated by commas (eg: `consul,nomad`). For `k3s`, the kubeconfig is copied from `srv-01` and `KUBECONFIG` is set to it.
+
+| Flag | Effect |
+|---|---|
+| `-t`, `--tls` | Use HTTPS and set the CA cert variable (eg: `CONSUL_CACERT`) |
+| `-a`, `--acl` | Set the bootstrap token variable (Consul and Nomad) |
+| `-i`, `--insecure` | Skip TLS verification (eg: `CONSUL_HTTP_SSL_VERIFY=false`) |
+| `-u`, `--unset` | Print `unset` commands for the variables instead of `export` |
+| `-s`, `--server` | Point at this server instead of the first running one |
 
 The variables point at the first running server. Use `--server` (`-s`) to pick another one, eg: `shikari env -n murphy -s srv-02 nomad`.
 
@@ -140,6 +153,8 @@ The `exec` command takes a command as argument and executes the command against 
 | `-c` | Runs only against the `client` VMs |
 | `-i <instance name>` | Targets a specific instance by its name (eg: `srv-01` or `cli-02`) |
 
+Pass `-q` to print only the output of the commands, without the `Running command against` headers.
+
 One of the flags is required. A single argument is run by a shell inside the VM, so it can use pipes and variables (eg: `'cat /etc/hosts | grep srv'`). Multiple arguments are run as-is, keeping their quoting (eg: `-- sh -c 'echo $HOSTNAME'`). `exec` exits with the worst exit status of the remote commands.
 
 ```
@@ -156,6 +171,22 @@ enabled
 Running command against: murphy-srv-03
 
 enabled
+```
+
+### Scale
+
+The `scale` command adds or removes VMs in an existing cluster. Pass the number of servers (`-s`) and/or clients (`-c`) the cluster should have; a role that isn't passed keeps its current count.
+
+```
+$ shikari scale -n murphy -c 5
+```
+
+New VMs take the lowest free numbers (eg: `cli-02` if it was removed earlier), and are created with the cluster's template and architecture unless `-t` or `-a` is passed. `-e` and `-i` work as they do for `create`.
+
+Scaling down removes the highest numbered VMs, and needs `-f` to confirm. Scaling both roles to 0 is refused, use `destroy` instead.
+
+```
+$ shikari scale -n murphy -s 1 -f
 ```
 
 ### Destroy
@@ -179,6 +210,8 @@ License files (`*.hclic`) found in `~/.shikari` will be read and used to automat
 Files should be named for the product they're for, i.e. `~/.shikari/consul.hclic`. This file would be used to populate the `CONSUL_LICENSE` environment variable.
 
 If a license environment variable is specified manually, e.g. `--env CONSUL_LICENSE=$(cat scenario_specific_consul_license.hclic)`, auto-loading will be skipped for that product.
+
+> NOTE: Licenses are passed to the VMs as environment variables, so Lima stores their contents in plain text in each VM's `~/.lima/<vm-name>/lima.yaml`, and Lima also adds them to `/etc/environment` inside the VMs, which every user in the VM can read. They are not passed on the command line, so they don't show up in `ps`. Destroying the cluster removes the copies in `~/.lima`. Don't share a VM's `lima.yaml` or `~/.lima` directory with a license loaded.
 
 ## Feedback
 

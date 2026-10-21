@@ -27,7 +27,7 @@ var listCmd = &cobra.Command{
 func init() {
 	rootCmd.AddCommand(listCmd)
 
-	listCmd.Flags().StringVarP(&cluster.Name, "name", "n", "", "name of the  cluster")
+	addNameFlag(listCmd, false)
 	listCmd.Flags().BoolVarP(&noheader, "no-header", "", false, "skip the header from list output")
 }
 

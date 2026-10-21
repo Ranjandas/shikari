@@ -26,7 +26,7 @@ var envCmd = &cobra.Command{
 Multiple product names can be passed separated by comma.
 
 For example:
-shikari env -n murphy -t consul,nomad
+shikari env -n murphy --tls consul,nomad
 export CONSUL_HTTP_ADDR=https://xxx.xxx
 export CONSUL_CACERT=xxx/consul-agent-ca.pem
 export NOMAD_ADDR=https://xxx.xxx
@@ -49,7 +49,6 @@ shikari env -n murphy -s srv-02 nomad`,
 			return fmt.Errorf("no product name passed as argument. Supported product names %v", validProducts)
 		}
 		// Set ClientConfig Name same as Cluster Name
-		// TODO: Refcator the flags by unifying common flags
 		clientConfigOpts.Name = cluster.Name
 		// List the VMs once, for all the products
 		clientConfigOpts.instances = instances
@@ -73,14 +72,13 @@ shikari env -n murphy -s srv-02 nomad`,
 func init() {
 	rootCmd.AddCommand(envCmd)
 
-	envCmd.Flags().StringVarP(&cluster.Name, "name", "n", "", "name of the cluster")
+	addNameFlag(envCmd, true)
 	envCmd.Flags().BoolVarP(&clientConfigOpts.ACL, "acl", "a", false, "prints the ACL token variables")
 	envCmd.Flags().BoolVarP(&clientConfigOpts.TLS, "tls", "t", false, "prints the TLS variables")
 	envCmd.Flags().BoolVarP(&clientConfigOpts.Insecure, "insecure", "i", false, "prints the skip TLS Verify variables")
-	envCmd.Flags().BoolVarP(&clientConfigOpts.Unset, "unset", "u", false, "unset the variables insetad of export")
+	envCmd.Flags().BoolVarP(&clientConfigOpts.Unset, "unset", "u", false, "unset the variables instead of export")
 	envCmd.Flags().StringVarP(&clientConfigOpts.Server, "server", "s", "", "server to point at, eg: srv-02 (default: the first running server)")
 
-	envCmd.MarkFlagRequired("name")
 }
 
 type ClientConfigOpts struct {
