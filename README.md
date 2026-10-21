@@ -68,6 +68,7 @@ When spinning up the VM's, Shikari injects a few environment variables into each
 
 > NOTE: `SHIKARI_SERVER_COUNT` and `SHIKARI_CLIENT_COUNT` are the size of the cluster when the VM was created. On `scale`, new VMs get the new size (a role that wasn't passed to `scale` keeps its current count), while existing VMs keep the counts they were created with.
 * Launch mode of VMs (`create` or `scale`) (injected as `SHIKARI_LAUNCH_MODE` env variable)
+* Template the cluster was created with (injected as `SHIKARI_TEMPLATE` env variable, and reused by `scale` unless `-t` is passed)
 
 > NOTE: The variables are prefixed with `SHIKARI_` from `v0.3.0`. Please refer to the specific version doc to find the right variables.
 

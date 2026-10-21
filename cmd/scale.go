@@ -4,6 +4,10 @@ Copyright © 2024 Ranjandas Athiyanathum Poyil thejranjan@gmail.com
 package cmd
 
 import (
+	"fmt"
+	"os"
+
+	lima "github.com/ranjandas/shikari/app/lima"
 	"github.com/spf13/cobra"
 )
 
@@ -14,6 +18,20 @@ var scaleCmd = &cobra.Command{
 	Long:    `Scale the number of VMs in the cluster`,
 	PreRunE: loadLicenses,
 	RunE: func(cmd *cobra.Command, args []string) error {
+		instances, err := lima.GetClusterInstances(cluster.Name)
+		if err != nil {
+			return err
+		}
+
+		if len(instances) == 0 {
+			return fmt.Errorf("cluster %s not found", cluster.Name)
+		}
+
+		warning := cluster.InheritFrom(instances[0], cmd.Flags().Changed("arch"), cmd.Flags().Changed("template"))
+		if warning != "" {
+			fmt.Fprintln(os.Stderr, "Warning:", warning)
+		}
+
 		return cluster.CreateCluster(true)
 	},
 }
@@ -24,11 +42,11 @@ func init() {
 	scaleCmd.Flags().Uint8VarP(&cluster.NumServers, "servers", "s", 0, "number of servers")
 	scaleCmd.Flags().Uint8VarP(&cluster.NumClients, "clients", "c", 0, "number of clients")
 	scaleCmd.Flags().StringVarP(&cluster.Name, "name", "n", "", "name of the cluster")
-	scaleCmd.Flags().StringVarP(&cluster.Template, "template", "t", "./hashibox.yaml", "name of lima template for the VMs")
+	scaleCmd.Flags().StringVarP(&cluster.Template, "template", "t", "./hashibox.yaml", "name of lima template for the VMs (defaults to the template the cluster was created with)")
 	scaleCmd.Flags().StringSliceVarP(&cluster.EnvVars, "env", "e", []string{}, "provide environment vars in the for key=value (can be used multiple times)")
 	scaleCmd.Flags().StringVarP(&cluster.ImgPath, "image", "i", "", "path to the cqow2 images to be used for the VMs, overriding the one in the template")
 	scaleCmd.Flags().BoolVarP(&cluster.Force, "force", "f", false, "force scaling down of the cluster VMs")
-	scaleCmd.Flags().StringVarP(&cluster.Arch, "arch", "a", "aarch64", "the architecture of the VM (supported by Lima). Eg: aarch64, s390x")
+	scaleCmd.Flags().StringVarP(&cluster.Arch, "arch", "a", "aarch64", "the architecture of the VM (supported by Lima). Eg: aarch64, s390x (defaults to the arch of the cluster)")
 
 	scaleCmd.MarkFlagRequired("name")
 	scaleCmd.MarkFlagsOneRequired("clients", "servers")
