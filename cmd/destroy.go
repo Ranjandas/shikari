@@ -6,8 +6,6 @@ package cmd
 import (
 	"fmt"
 	"strings"
-	"sync"
-	"time"
 
 	lima "github.com/ranjandas/shikari/app/lima"
 	"github.com/spf13/cobra"
@@ -67,19 +65,8 @@ func notStopped(instances []lima.LimaVM) []string {
 }
 
 func destroyVM(instances []lima.LimaVM, force bool) error {
-	var wg sync.WaitGroup
-	errCh := make(chan error, len(instances))
-
-	// Stop Lima VMs concurrently
-	for _, vmName := range instances {
-		wg.Add(1)
-
-		go lima.DeleteLimaVM(vmName.Name, force, &wg, errCh)
-		time.Sleep(2 * time.Second) //delay the goroutine to avoid errors
-	}
-
-	// Wait for all goroutines to finish
-	wg.Wait()
-
-	return collectErrors(errCh)
+	// A delete that fails is retried once, as it is safe to repeat
+	return lima.RunAll(lima.Names(instances), lima.Parallelism(), 1, func(vmName string) error {
+		return lima.DeleteLimaVM(vmName, force)
+	})
 }

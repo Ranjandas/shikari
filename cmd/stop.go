@@ -5,7 +5,6 @@ package cmd
 
 import (
 	"fmt"
-	"sync"
 
 	lima "github.com/ranjandas/shikari/app/lima"
 	"github.com/spf13/cobra"
@@ -38,19 +37,7 @@ var stopCmd = &cobra.Command{
 			return nil
 		}
 
-		var wg sync.WaitGroup
-		errCh := make(chan error, len(runningInstances))
-
-		// Stop Lima VMs concurrently
-		for _, vmName := range runningInstances {
-			wg.Add(1)
-			go lima.StopLimaVM(vmName.Name, &wg, errCh)
-		}
-
-		// Wait for all goroutines to finish
-		wg.Wait()
-
-		return collectErrors(errCh)
+		return lima.RunAll(lima.Names(runningInstances), lima.Parallelism(), 0, lima.StopLimaVM)
 	},
 }
 

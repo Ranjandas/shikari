@@ -5,8 +5,6 @@ package cmd
 
 import (
 	"fmt"
-	"sync"
-	"time"
 
 	lima "github.com/ranjandas/shikari/app/lima"
 	"github.com/spf13/cobra"
@@ -38,21 +36,8 @@ $ shikari start -n murphy`,
 			return nil
 		}
 
-		var wg sync.WaitGroup
-		errCh := make(chan error, len(stoppedInstances))
-
-		// Stop Lima VMs concurrently
-		for _, vmName := range stoppedInstances {
-			wg.Add(1)
-			go lima.StartLimaVM(vmName.Name, &wg, errCh)
-			// @TODO - Serialize properly
-			time.Sleep(10 * time.Second)
-		}
-
-		// Wait for all goroutines to finish
-		wg.Wait()
-
-		return collectErrors(errCh)
+		// A start that fails is retried once, as it is safe to repeat
+		return lima.RunAll(lima.Names(stoppedInstances), lima.Parallelism(), 1, lima.StartLimaVM)
 	},
 }
 

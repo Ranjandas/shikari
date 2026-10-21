@@ -8,8 +8,6 @@ import (
 	"regexp"
 	"sort"
 	"strings"
-	"sync"
-	"time"
 
 	lima "github.com/ranjandas/shikari/app/lima"
 )
@@ -91,9 +89,6 @@ func (c ShikariCluster) CreateCluster(scale bool) error {
 			}
 		}
 
-		var wg sync.WaitGroup
-		errCh := make(chan error, len(vmsToCreate))
-
 		// // Override the image from the template
 		if len(c.ImgPath) > 0 {
 			absolutePath, _ := filepath.Abs(c.ImgPath)
@@ -101,44 +96,24 @@ func (c ShikariCluster) CreateCluster(scale bool) error {
 			setter.set(".images[0].location", absolutePath)
 		}
 
-		// Spawn Lima VMs concurrently
-		for _, vmName := range vmsToCreate {
-			wg.Add(1)
+		// A spawn that fails is not retried, as the half-created VM would make the
+		// retry fail with a different error
+		err := lima.RunAll(vmsToCreate, lima.Parallelism(), 0, func(vmName string) error {
 			vmSetter := setter.clone()
 			vmSetter.setEnv("SHIKARI_VM_MODE", c.getInstanceMode(vmName))
 
-			go lima.SpawnLimaVM(vmName, c.Arch, tmpl, vmSetter.expression(), vmSetter.env, &wg, errCh)
-		}
-
-		// Wait for all goroutines to finish
-		wg.Wait()
-
-		// Close error channel after all goroutines are done
-		close(errCh)
-
-		// Collect any errors reported by the goroutines
-		for err := range errCh {
+			return lima.SpawnLimaVM(vmName, c.Arch, tmpl, vmSetter.expression(), vmSetter.env)
+		})
+		if err != nil {
 			errs = append(errs, err)
 		}
 	}
 
 	if len(vmsToDestroy) > 0 {
-		var wg sync.WaitGroup
-		errCh := make(chan error, len(vmsToDestroy))
-
-		for _, vmName := range vmsToDestroy {
-			wg.Add(1)
-			go lima.DeleteLimaVM(vmName, c.Force, &wg, errCh)
-			time.Sleep(2 * time.Second)
-		}
-		// Wait for all goroutines to finish
-		wg.Wait()
-
-		// Close error channel after all goroutines are done
-		close(errCh)
-
-		// Collect any errors reported by the goroutines
-		for err := range errCh {
+		err := lima.RunAll(vmsToDestroy, lima.Parallelism(), 1, func(vmName string) error {
+			return lima.DeleteLimaVM(vmName, c.Force)
+		})
+		if err != nil {
 			errs = append(errs, err)
 		}
 	}
