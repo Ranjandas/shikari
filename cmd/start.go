@@ -21,14 +21,21 @@ var startCmd = &cobra.Command{
 Exmple:
 
 $ shikari start -n murphy`,
-	Run: func(cmd *cobra.Command, args []string) {
-		//fmt.Println("start called")
-		instances := lima.GetClusterInstances(cluster.Name)
+	RunE: func(cmd *cobra.Command, args []string) error {
+		instances, err := lima.GetClusterInstances(cluster.Name)
+		if err != nil {
+			return err
+		}
+
+		if len(instances) == 0 {
+			return fmt.Errorf("cluster %s not found", cluster.Name)
+		}
+
 		stoppedInstances := lima.GetInstancesByStatus(instances, "stopped")
 
 		if len(stoppedInstances) == 0 {
 			fmt.Printf("No stopped instances in the %s cluster to start.\n", cluster.Name)
-			return
+			return nil
 		}
 
 		var wg sync.WaitGroup
@@ -45,13 +52,7 @@ $ shikari start -n murphy`,
 		// Wait for all goroutines to finish
 		wg.Wait()
 
-		// Close error channel after all goroutines are done
-		close(errCh)
-
-		// Check for any errors reported by the goroutines
-		for err := range errCh {
-			fmt.Println(err)
-		}
+		return collectErrors(errCh)
 	},
 }
 

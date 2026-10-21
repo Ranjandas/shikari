@@ -4,8 +4,8 @@ Copyright © 2024 Ranjandas Athiyanathum Poyil thejranjan@gmail.com
 package cmd
 
 import (
+	"errors"
 	"fmt"
-	"os"
 	"strings"
 
 	lima "github.com/ranjandas/shikari/app/lima"
@@ -19,7 +19,7 @@ var execCmd = &cobra.Command{
 	Long: `Execute commands inside the VMs. For example:
 
 You can run commands against specific class of servers (clients, servers or all)`,
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 
 		quiet, _ := cmd.Flags().GetBool("quiet")
 		execAll, _ := cmd.Flags().GetBool("all")
@@ -29,27 +29,39 @@ You can run commands against specific class of servers (clients, servers or all)
 
 		clusterName, _ := cmd.Flags().GetString("name")
 
-		instances := lima.GetInstancesByStatus(lima.GetClusterInstances(clusterName), "running")
-
-		if len(instances) == 0 {
-			fmt.Printf("There are no running instances in the cluster %s.\n", clusterName)
+		if len(args) == 0 {
+			return fmt.Errorf("no commands provided as args to execute")
 		}
 
-		if len(args) == 0 {
-			fmt.Println("No commands provided as args to execute. Exiting!")
-			os.Exit(0)
+		clusterInstances, err := lima.GetClusterInstances(clusterName)
+		if err != nil {
+			return err
+		}
+
+		instances := lima.GetInstancesByStatus(clusterInstances, "running")
+
+		if len(instances) == 0 {
+			return fmt.Errorf("there are no running instances in the cluster %s", clusterName)
+		}
+
+		// keep running against the remaining VMs when one fails, and fail at the end
+		var errs []error
+		execVM := func(vmName string) {
+			if err := lima.ExecLimaVM(vmName, strings.Join(args, " "), quiet); err != nil {
+				errs = append(errs, err)
+			}
 		}
 
 		if execAll {
 			for _, vmName := range instances {
-				lima.ExecLimaVM(vmName.Name, strings.Join(args, " "), quiet)
+				execVM(vmName.Name)
 			}
 		}
 
 		if execServers {
 			for _, vmName := range instances {
 				if strings.HasPrefix(vmName.Name, fmt.Sprintf("%s-srv", clusterName)) {
-					lima.ExecLimaVM(vmName.Name, strings.Join(args, " "), quiet)
+					execVM(vmName.Name)
 				}
 
 			}
@@ -58,7 +70,7 @@ You can run commands against specific class of servers (clients, servers or all)
 		if execClients {
 			for _, vmName := range instances {
 				if strings.HasPrefix(vmName.Name, fmt.Sprintf("%s-cli", clusterName)) {
-					lima.ExecLimaVM(vmName.Name, strings.Join(args, " "), quiet)
+					execVM(vmName.Name)
 				}
 
 			}
@@ -69,14 +81,15 @@ You can run commands against specific class of servers (clients, servers or all)
 			for _, vmName := range instances {
 				if strings.HasSuffix(vmName.Name, execInstance) {
 					instanceExists = true
-					lima.ExecLimaVM(vmName.Name, strings.Join(args, " "), quiet)
+					execVM(vmName.Name)
 				}
 			}
 			if !instanceExists {
-				fmt.Printf("No instance matching the name *%s exists in cluster %s!\n", execInstance, clusterName)
+				errs = append(errs, fmt.Errorf("no instance matching the name *%s exists in cluster %s", execInstance, clusterName))
 			}
 		}
 
+		return errors.Join(errs...)
 	},
 }
 

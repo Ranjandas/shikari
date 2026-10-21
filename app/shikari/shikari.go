@@ -1,6 +1,7 @@
 package shikari
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -12,8 +13,14 @@ import (
 	lima "github.com/ranjandas/shikari/app/lima"
 )
 
-func (c ShikariCluster) GetCurrentVMCount() (uint8, uint8) {
-	return countVMs(lima.GetClusterInstances(c.Name))
+func (c ShikariCluster) GetCurrentVMCount() (uint8, uint8, error) {
+	vms, err := lima.GetClusterInstances(c.Name)
+	if err != nil {
+		return 0, 0, err
+	}
+
+	serverCount, clientCount := countVMs(vms)
+	return serverCount, clientCount, nil
 }
 
 func countVMs(vms []lima.LimaVM) (uint8, uint8) {
@@ -31,14 +38,16 @@ func countVMs(vms []lima.LimaVM) (uint8, uint8) {
 	return serverCount, clientCount
 }
 
-func (c ShikariCluster) CreateCluster(scale bool) {
+func (c ShikariCluster) CreateCluster(scale bool) error {
 
 	if !c.validateName() {
-		fmt.Println("Cluster name can only contain alphanumeric characters!")
-		return
+		return fmt.Errorf("invalid cluster name %q: cluster name can only contain alphanumeric characters", c.Name)
 	}
 
-	serverCount, clientCount := c.GetCurrentVMCount()
+	serverCount, clientCount, err := c.GetCurrentVMCount()
+	if err != nil {
+		return err
+	}
 
 	var serverVMs, clientVMs []string
 	var vmsToCreate, vmsToDestroy []string
@@ -69,8 +78,7 @@ func (c ShikariCluster) CreateCluster(scale bool) {
 		}
 
 		if (clientScaleDown || serverScaleDown) && !c.Force {
-			fmt.Println("The following VMs", strings.Join(vmsToDestroy, ","), "will have to be destroyed. Rerun the command with -f to force the scale down!")
-			return
+			return fmt.Errorf("the following VMs will have to be destroyed: %s. Rerun the command with -f to force the scale down", strings.Join(vmsToDestroy, ","))
 		}
 	} else {
 		// start index from 1 if not a scaling request
@@ -91,21 +99,26 @@ func (c ShikariCluster) CreateCluster(scale bool) {
 	setter.setEnv("SHIKARI_LAUNCH_MODE", launchMode(scale))
 
 	// append user defined environment variable
-	c.generateEnvArgs(&setter)
+	if err := c.generateEnvArgs(&setter); err != nil {
+		return err
+	}
+
+	var errs []error
 
 	if len(vmsToCreate) > 0 {
 		if len(c.ImgPath) > 0 {
 			absolutePath, err := filepath.Abs(c.ImgPath)
 			if err != nil {
-				fmt.Printf("EROR: Cannot find the absolute path of the image: %s", c.ImgPath)
-				return
+				return fmt.Errorf("cannot find the absolute path of the image %s: %w", c.ImgPath, err)
 			}
 
-			qcow2, _ := isQCOW2(absolutePath)
+			qcow2, err := isQCOW2(absolutePath)
+			if err != nil {
+				return fmt.Errorf("cannot read the image %s: %w", absolutePath, err)
+			}
 
 			if !qcow2 {
-				fmt.Printf("Error: Image %s is not of type qCOW2\n", absolutePath)
-				return
+				return fmt.Errorf("image %s is not of type qCOW2", absolutePath)
 			}
 		}
 
@@ -142,9 +155,9 @@ func (c ShikariCluster) CreateCluster(scale bool) {
 		// Close error channel after all goroutines are done
 		close(errCh)
 
-		// Check for any errors reported by the goroutines
+		// Collect any errors reported by the goroutines
 		for err := range errCh {
-			fmt.Println(err)
+			errs = append(errs, err)
 		}
 	}
 
@@ -163,12 +176,13 @@ func (c ShikariCluster) CreateCluster(scale bool) {
 		// Close error channel after all goroutines are done
 		close(errCh)
 
-		// Check for any errors reported by the goroutines
+		// Collect any errors reported by the goroutines
 		for err := range errCh {
-			fmt.Println(err)
+			errs = append(errs, err)
 		}
 	}
 
+	return errors.Join(errs...)
 }
 
 func (c ShikariCluster) generateServerInstanceNames(start int, end int) []string {
@@ -195,27 +209,23 @@ func (c ShikariCluster) generateClientInstanceNames(start int, end int) []string
 	return s
 }
 
-func (c ShikariCluster) generateEnvArgs(setter *yqSetter) {
+func (c ShikariCluster) generateEnvArgs(setter *yqSetter) error {
 	envs := c.EnvVars
 
 	for _, e := range envs {
-		if !strings.Contains(e, "=") {
-			fmt.Println("Invalid env format")
-			os.Exit(1)
-		}
-
 		kv := strings.SplitN(e, "=", 2)
 
+		// never include the value in errors, it can be a license
 		if len(kv) != 2 || kv[0] == "" || kv[1] == "" {
-			fmt.Println("Invalid env format")
-			os.Exit(1)
+			return fmt.Errorf("invalid env format for %q, expected key=value", kv[0])
 		}
 
 		if err := setter.setEnv(kv[0], kv[1]); err != nil {
-			fmt.Println("Invalid env format:", err)
-			os.Exit(1)
+			return fmt.Errorf("invalid env format: %w", err)
 		}
 	}
+
+	return nil
 }
 
 func isQCOW2(filePath string) (bool, error) {

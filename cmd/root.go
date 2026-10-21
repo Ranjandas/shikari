@@ -32,6 +32,8 @@ var rootCmd = &cobra.Command{
 
 Shikari helps you spin up VMs (using lima) aimed at setting up distributed
 clusters. Primarily aimed at Nomad and Consul clusters.`,
+	// Errors are printed by cobra, the usage is only useful for flag errors
+	SilenceUsage: true,
 	// Uncomment the following line if your bare application
 	// has an action associated with it:
 	// Run: func(cmd *cobra.Command, args []string) { },

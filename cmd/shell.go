@@ -15,21 +15,22 @@ var shellCmd = &cobra.Command{
 	Use:   "shell",
 	Short: "Get a shell inside the VM",
 	Long:  `Get a shell inside the VM`,
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		if !(len(args) > 0) {
-			fmt.Println("No Instance name passed")
-			return
+			return fmt.Errorf("no instance name passed")
 		}
 
-		vm := lima.GetInstance(args[0])
+		vm, err := lima.GetInstance(args[0])
+		if err != nil {
+			return err
+		}
+
 		// return if no instance with the name was found
 		if vm.Name == "" || vm.Status != "Running" {
-			fmt.Printf("No running instance found with the name \"%s\"\n", args[0])
-			return
+			return fmt.Errorf("no running instance found with the name \"%s\"", args[0])
 		}
 
-		lima.ShellLimaVM(vm.Name)
-
+		return lima.ShellLimaVM(vm.Name)
 	},
 }
 

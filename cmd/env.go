@@ -4,6 +4,7 @@ Copyright © 2024 Ranjandas Athiyanathum Poyil thejranjan@gmail.com
 package cmd
 
 import (
+	"errors"
 	"fmt"
 	"math/rand"
 	"os"
@@ -30,29 +31,37 @@ export CONSUL_HTTP_ADDR=https://xxx.xxx
 export CONSUL_CACERT=xxx/consul-agent-ca.pem
 export NOMAD_ADDR=https://xxx.xxx
 export NOMAD_CACERT=xxx/nomad-agent-ca.pem`,
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 
-		if len(lima.GetClusterInstances(cluster.Name)) == 0 {
-			fmt.Printf("Cluster \"%s\" not found.\n", cluster.Name)
-			return
+		instances, err := lima.GetClusterInstances(cluster.Name)
+		if err != nil {
+			return err
+		}
+
+		if len(instances) == 0 {
+			return fmt.Errorf("cluster \"%s\" not found", cluster.Name)
 		}
 
 		if !(len(args) > 0) {
-			fmt.Println("No product name passed as argument. Supported product names", validProducts)
-			return
+			return fmt.Errorf("no product name passed as argument. Supported product names %v", validProducts)
 		}
 		// Set ClientConfig Name same as Cluster Name
 		// TODO: Refcator the flags by unifying common flags
 		clientConfigOpts.Name = cluster.Name
 		products := args[0]
 
+		var errs []error
 		for _, product := range strings.Split(products, ",") {
 			if isValidProduct(product) {
-				clientConfigOpts.printClientConfigEnvs(product)
+				if err := clientConfigOpts.printClientConfigEnvs(product); err != nil {
+					errs = append(errs, err)
+				}
 			} else {
-				fmt.Println("\nInvalid product name", product)
+				errs = append(errs, fmt.Errorf("invalid product name %s. Supported product names %v", product, validProducts))
 			}
 		}
+
+		return errors.Join(errs...)
 	},
 }
 
@@ -87,41 +96,65 @@ func isValidProduct(product string) bool {
 	return false
 }
 
-func (c ClientConfigOpts) printClientConfigEnvs(product string) {
+func (c ClientConfigOpts) printClientConfigEnvs(product string) error {
+	var vars string
+	var err error
+
 	switch product {
 	case "consul":
-		fmt.Println(c.getConsulVariables())
+		vars, err = c.getConsulVariables()
 	case "nomad":
-		fmt.Println(c.getNomadVariables())
+		vars, err = c.getNomadVariables()
 	case "vault":
-		fmt.Println(c.getVaultVariables())
+		vars, err = c.getVaultVariables()
 	case "boundary":
-		fmt.Println(c.getBoundaryVariables())
+		vars, err = c.getBoundaryVariables()
 	case "k3s":
-		fmt.Println(c.getK3SVariables())
+		vars, err = c.getK3SVariables()
 	}
+
+	if err != nil {
+		return fmt.Errorf("%s: %w", product, err)
+	}
+
+	fmt.Println(vars)
+	return nil
 }
 
-func (c ClientConfigOpts) getRandomServer() lima.LimaVM {
+func (c ClientConfigOpts) getRandomServerAddress() (string, error) {
+	instances, err := lima.GetClusterInstances(c.Name)
+	if err != nil {
+		return "", err
+	}
+
 	// always get the instances of type server "-srv"
-	instances := lima.GetServerInstances(lima.GetClusterInstances(c.Name))
-	runningInstances := lima.GetInstancesByStatus(instances, "running")
+	runningInstances := lima.GetInstancesByStatus(lima.GetServerInstances(instances), "running")
 
 	if !(len(runningInstances) > 0) {
-		os.Exit(1)
+		return "", fmt.Errorf("there are no running servers in the cluster %s", c.Name)
 	}
 
 	randomIndex := rand.Intn(len(runningInstances))
-	return runningInstances[randomIndex]
-}
+	server := runningInstances[randomIndex]
 
-func (c ClientConfigOpts) getConsulVariables() string {
-
-	if c.Unset {
-		return "unset CONSUL_HTTP_ADDR\nunset CONSUL_HTTP_TOKEN\nunset CONSUL_HTTP_SSL_VERIFY\nunset CONSUL_CACERT"
+	addr := server.GetIPAddress()
+	if addr == "" {
+		return "", fmt.Errorf("could not get the IP address of %s", server.Name)
 	}
 
-	addr := c.getRandomServer().GetIPAddress()
+	return addr, nil
+}
+
+func (c ClientConfigOpts) getConsulVariables() (string, error) {
+
+	if c.Unset {
+		return "unset CONSUL_HTTP_ADDR\nunset CONSUL_HTTP_TOKEN\nunset CONSUL_HTTP_SSL_VERIFY\nunset CONSUL_CACERT", nil
+	}
+
+	addr, err := c.getRandomServerAddress()
+	if err != nil {
+		return "", err
+	}
 	scheme := "http://"
 	port := 8500
 	bootstrapToken := "root" // consul bootstrap token
@@ -154,16 +187,19 @@ func (c ClientConfigOpts) getConsulVariables() string {
 		combinedVars = strings.Join([]string{combinedVars, insecureTLSVar}, "\n")
 	}
 
-	return combinedVars
+	return combinedVars, nil
 }
 
-func (c ClientConfigOpts) getNomadVariables() string {
+func (c ClientConfigOpts) getNomadVariables() (string, error) {
 
 	if c.Unset {
-		return "unset NOMAD_ADDR\nunset NOMAD_TOKEN\nunset NOMAD_SKIP_VERIFY\nunset NOMAD_CACERT"
+		return "unset NOMAD_ADDR\nunset NOMAD_TOKEN\nunset NOMAD_SKIP_VERIFY\nunset NOMAD_CACERT", nil
 	}
 
-	addr := c.getRandomServer().GetIPAddress()
+	addr, err := c.getRandomServerAddress()
+	if err != nil {
+		return "", err
+	}
 	scheme := "http://"
 	port := 4646
 	bootstrapToken := "00000000-0000-0000-0000-000000000000" // consul bootstrap token
@@ -195,16 +231,19 @@ func (c ClientConfigOpts) getNomadVariables() string {
 		combinedVars = strings.Join([]string{combinedVars, insecureTLSVar}, "\n")
 	}
 
-	return combinedVars
+	return combinedVars, nil
 }
 
-func (c ClientConfigOpts) getVaultVariables() string {
+func (c ClientConfigOpts) getVaultVariables() (string, error) {
 
 	if c.Unset {
-		return "unset VAULT_ADDR\nunset VAULT_SKIP_VERIFY\nunset VAULT_CACERT"
+		return "unset VAULT_ADDR\nunset VAULT_SKIP_VERIFY\nunset VAULT_CACERT", nil
 	}
 
-	addr := c.getRandomServer().GetIPAddress()
+	addr, err := c.getRandomServerAddress()
+	if err != nil {
+		return "", err
+	}
 	scheme := "http://"
 	port := 8200
 	caCertVar := ""
@@ -230,17 +269,20 @@ func (c ClientConfigOpts) getVaultVariables() string {
 		combinedVars = strings.Join([]string{combinedVars, insecureTLSVar}, "\n")
 	}
 
-	return combinedVars
+	return combinedVars, nil
 }
 
-func (c ClientConfigOpts) getBoundaryVariables() string {
+func (c ClientConfigOpts) getBoundaryVariables() (string, error) {
 	// ref: https://developer.hashicorp.com/boundary/docs/commands#environment-variables
 
 	if c.Unset {
-		return "unset BOUNDARY_ADDR\nunset BOUNDARY_TLS_INSECURE\nunset BOUNDARY_CACERT"
+		return "unset BOUNDARY_ADDR\nunset BOUNDARY_TLS_INSECURE\nunset BOUNDARY_CACERT", nil
 	}
 
-	addr := c.getRandomServer().GetIPAddress()
+	addr, err := c.getRandomServerAddress()
+	if err != nil {
+		return "", err
+	}
 	scheme := "http://"
 	port := 9200
 	caCertVar := ""
@@ -266,32 +308,32 @@ func (c ClientConfigOpts) getBoundaryVariables() string {
 		combinedVars = strings.Join([]string{combinedVars, insecureTLSVar}, "\n")
 	}
 
-	return combinedVars
+	return combinedVars, nil
 }
 
-func (c ClientConfigOpts) getK3SVariables() string {
+func (c ClientConfigOpts) getK3SVariables() (string, error) {
 	var k3sKubeConfig string
 
-	vm := lima.GetInstance(fmt.Sprintf("%s-srv-01", c.Name))
-
-	if vm.Name == "" {
-		return "" //There are no VMs in the cluster
+	vm, err := lima.GetInstance(fmt.Sprintf("%s-srv-01", c.Name))
+	if err != nil {
+		return "", err
 	}
 
-	err := c.copyK3SKubeConfig()
+	if vm.Name == "" {
+		return "", fmt.Errorf("instance %s-srv-01 not found", c.Name)
+	}
+
+	err = c.copyK3SKubeConfig(vm)
 	if err != nil {
-		fmt.Printf("error copying KUBECONFIG for Cluster: %s %v\n", c.Name, err)
-		os.Exit(1)
+		return "", fmt.Errorf("error copying KUBECONFIG for cluster %s: %w", c.Name, err)
 	}
 
 	k3sKubeConfig = fmt.Sprintf("export KUBECONFIG=%s/k3s.yaml", vm.Dir)
 
-	return k3sKubeConfig
+	return k3sKubeConfig, nil
 }
 
-func (c ClientConfigOpts) copyK3SKubeConfig() error {
-
-	vm := lima.GetInstance(fmt.Sprintf("%s-srv-01", c.Name))
+func (c ClientConfigOpts) copyK3SKubeConfig(vm lima.LimaVM) error {
 
 	cmd := exec.Command("limactl", "copy", vm.Name+":/etc/rancher/k3s/k3s.yaml", vm.Dir)
 
@@ -312,9 +354,9 @@ func (c ClientConfigOpts) copyK3SKubeConfig() error {
 func (c ClientConfigOpts) getTLSCaCertPath(product string) string {
 	firstInstance := fmt.Sprintf("%s-srv-01", c.Name)
 
-	vm := lima.GetInstance(firstInstance)
+	vm, err := lima.GetInstance(firstInstance)
 
-	if vm.Name == "" {
+	if err != nil || vm.Name == "" {
 		return "" //There are no VMs in the cluster
 	}
 

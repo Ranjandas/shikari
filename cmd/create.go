@@ -24,14 +24,19 @@ The above command will create a 3 server and 3 client cluster, each vm
 carrying the name as a prefix to easily identify.
 `,
 	PreRunE: loadLicenses,
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		// Deliberately broader than cluster membership: refuse to create when
 		// any Lima VM shares the "<name>-" prefix, to avoid name collisions.
-		if len(lima.GetInstancesByPrefix(cluster.Name)) > 0 {
-			fmt.Printf("Cluster %s alredy exist!", cluster.Name)
-			return
+		instances, err := lima.GetInstancesByPrefix(cluster.Name)
+		if err != nil {
+			return err
 		}
-		cluster.CreateCluster(false)
+
+		if len(instances) > 0 {
+			return fmt.Errorf("cluster %s already exists", cluster.Name)
+		}
+
+		return cluster.CreateCluster(false)
 	},
 }
 

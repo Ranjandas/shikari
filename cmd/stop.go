@@ -20,15 +20,22 @@ var stopCmd = &cobra.Command{
 	Exmple:
 	
 	$ shikari stop -n murphy`,
-	Run: func(cmd *cobra.Command, args []string) {
-		//fmt.Println("stop called")
+	RunE: func(cmd *cobra.Command, args []string) error {
 
-		instances := lima.GetClusterInstances(cluster.Name)
+		instances, err := lima.GetClusterInstances(cluster.Name)
+		if err != nil {
+			return err
+		}
+
+		if len(instances) == 0 {
+			return fmt.Errorf("cluster %s not found", cluster.Name)
+		}
+
 		runningInstances := lima.GetInstancesByStatus(instances, "running")
 
 		if len(runningInstances) == 0 {
-			fmt.Printf("No stopped instances in the %s cluster to stop.\n", cluster.Name)
-			return
+			fmt.Printf("No running instances in the %s cluster to stop.\n", cluster.Name)
+			return nil
 		}
 
 		var wg sync.WaitGroup
@@ -43,13 +50,7 @@ var stopCmd = &cobra.Command{
 		// Wait for all goroutines to finish
 		wg.Wait()
 
-		// Close error channel after all goroutines are done
-		close(errCh)
-
-		// Check for any errors reported by the goroutines
-		for err := range errCh {
-			fmt.Println(err)
-		}
+		return collectErrors(errCh)
 	},
 }
 

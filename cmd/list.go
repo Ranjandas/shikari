@@ -19,8 +19,8 @@ var listCmd = &cobra.Command{
 	Use:   "list",
 	Short: "List VMs belonging to clusters",
 	Long:  `List VMs belonging to clusters`,
-	Run: func(cmd *cobra.Command, args []string) {
-		listInstances(cluster.Name)
+	RunE: func(cmd *cobra.Command, args []string) error {
+		return listInstances(cluster.Name)
 	},
 }
 
@@ -33,8 +33,11 @@ func init() {
 
 var noheader bool
 
-func listInstances(clusterName string) {
-	vms := lima.ListInstances()
+func listInstances(clusterName string) error {
+	vms, err := lima.ListInstances()
+	if err != nil {
+		return err
+	}
 
 	w := tabwriter.NewWriter(os.Stdout, 4, 8, 4, byte(' '), 0)
 
@@ -57,7 +60,7 @@ func listInstances(clusterName string) {
 			getImageLocation(vm),
 		)
 	}
-	w.Flush()
+	return w.Flush()
 }
 
 func getImageLocation(vm lima.LimaVM) string {

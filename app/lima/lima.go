@@ -4,43 +4,49 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"log"
 	"os"
 	"os/exec"
 	"strings"
 	"sync"
 )
 
-func ListInstances() []LimaVM {
+func ListInstances() ([]LimaVM, error) {
 	cmd := exec.Command("limactl", "list", "--json")
+	cmd.Stderr = os.Stderr
 
 	output, err := cmd.Output()
 	if err != nil {
-		log.Fatalf("Failed to execute command: %v", err)
+		return nil, fmt.Errorf("failed to list Lima VMs: %w", err)
 	}
 
+	return parseInstances(output)
+}
+
+// parseInstances parses the output of `limactl list --json`, one VM per line.
+func parseInstances(output []byte) ([]LimaVM, error) {
 	var vms []LimaVM
 
 	for _, line := range bytes.Split(output, []byte("\n")) {
 		var vm LimaVM
 		// condition to avoid duplicate entries
-		if string(line) != "" {
-			json.Unmarshal([]byte(line), &vm)
+		if len(bytes.TrimSpace(line)) != 0 {
+			if err := json.Unmarshal(line, &vm); err != nil {
+				return nil, fmt.Errorf("failed to parse limactl list output: %w", err)
+			}
 
 			vms = append(vms, vm)
 		}
 	}
-	return vms
+	return vms, nil
 }
 
-func GetInstance(name string) LimaVM {
+func GetInstance(name string) (LimaVM, error) {
 
 	var vm LimaVM
 
-	vms := ListInstances()
-
-	if len(vms) == 0 {
-		return vm
+	vms, err := ListInstances()
+	if err != nil {
+		return vm, err
 	}
 
 	for _, v := range vms {
@@ -50,13 +56,16 @@ func GetInstance(name string) LimaVM {
 		}
 	}
 
-	return vm
+	return vm, nil
 }
 
-func GetInstancesByPrefix(name string) []LimaVM {
+func GetInstancesByPrefix(name string) ([]LimaVM, error) {
 	var filteredInstances []LimaVM
 
-	instances := ListInstances()
+	instances, err := ListInstances()
+	if err != nil {
+		return nil, err
+	}
 
 	for _, instance := range instances {
 		if strings.HasPrefix(instance.Name, fmt.Sprintf("%s-", name)) {
@@ -64,7 +73,7 @@ func GetInstancesByPrefix(name string) []LimaVM {
 		}
 	}
 
-	return filteredInstances
+	return filteredInstances, nil
 }
 
 func GetInstancesByStatus(instances []LimaVM, status string) []LimaVM {
@@ -140,7 +149,7 @@ func DeleteLimaVM(vmName string, force bool, wg *sync.WaitGroup, errCh chan<- er
 	fmt.Printf("Lima VM %s deleted successfully.\n", vmName)
 }
 
-func ExecLimaVM(vmName string, command string, quiet bool) {
+func ExecLimaVM(vmName string, command string, quiet bool) error {
 
 	if !quiet {
 		fmt.Printf("\nRunning command against: %s\n\n", vmName)
@@ -155,9 +164,10 @@ func ExecLimaVM(vmName string, command string, quiet bool) {
 
 	// Run the command
 	if err := cmd.Run(); err != nil {
-		fmt.Printf("error executing command against VM %s: %v\n", vmName, err)
-		return
+		return fmt.Errorf("error executing command against VM %s: %w", vmName, err)
 	}
+
+	return nil
 }
 
 // SpawnLimaVM creates and starts a Lima VM. env is added to the environment of
@@ -182,7 +192,7 @@ func SpawnLimaVM(vmName string, arch string, tmpl string, yqExpression string, e
 	fmt.Printf("Lima VM %s spawned successfully.\n", vmName)
 }
 
-func ShellLimaVM(vmName string) {
+func ShellLimaVM(vmName string) error {
 
 	cmd := exec.Command("limactl", "shell", vmName)
 
@@ -193,10 +203,14 @@ func ShellLimaVM(vmName string) {
 
 	// Run the command
 	if err := cmd.Start(); err != nil {
-		log.Fatalf("Failed to get a shell inside %s: %v", vmName, err)
+		return fmt.Errorf("failed to get a shell inside %s: %w", vmName, err)
 	}
 
+	// The exit status of the shell session is the user's business, eg: the
+	// last command typed. Only report failures to start the session.
 	cmd.Wait()
+
+	return nil
 }
 
 func (vm LimaVM) GetScenarioNameFromEnv() string {
@@ -229,14 +243,15 @@ func (vm LimaVM) GetIPAddress() string {
 	output, err := cmd.Output()
 
 	if err != nil {
-		fmt.Println("Error:", err)
+		fmt.Fprintf(os.Stderr, "error getting the IP address of %s: %v\n", vm.Name, err)
 		return ""
 	}
 
 	var interfaces []Interface
 	err = json.Unmarshal([]byte(output), &interfaces)
 	if err != nil {
-		log.Fatalf("Error unmarshalling JSON: %v", err)
+		fmt.Fprintf(os.Stderr, "error parsing the IP address of %s: %v\n", vm.Name, err)
+		return ""
 	}
 
 	// Extract the local address where family is "inet"
