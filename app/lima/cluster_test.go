@@ -79,3 +79,13 @@ func TestFilterClusterInstances(t *testing.T) {
 		t.Errorf("GetServerInstances = %v, want %v", got, want)
 	}
 }
+
+func TestIndex(t *testing.T) {
+	tests := map[string]int{"dev-srv-01": 1, "dev-cli-12": 12, "dev-postgres": 0, "dev-srv-1": 1}
+
+	for name, want := range tests {
+		if got := (LimaVM{Name: name}).Index(); got != want {
+			t.Errorf("Index(%q) = %d, want %d", name, got, want)
+		}
+	}
+}

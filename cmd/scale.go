@@ -27,6 +27,9 @@ var scaleCmd = &cobra.Command{
 			return fmt.Errorf("cluster %s not found", cluster.Name)
 		}
 
+		cluster.ServersSet = cmd.Flags().Changed("servers")
+		cluster.ClientsSet = cmd.Flags().Changed("clients")
+
 		warning := cluster.InheritFrom(instances[0], cmd.Flags().Changed("arch"), cmd.Flags().Changed("template"))
 		if warning != "" {
 			fmt.Fprintln(os.Stderr, "Warning:", warning)

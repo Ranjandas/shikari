@@ -5,6 +5,8 @@ type ShikariCluster struct {
 	Arch       string
 	NumServers uint8
 	NumClients uint8
+	ServersSet bool // whether the number of servers was given, used by scale
+	ClientsSet bool // whether the number of clients was given, used by scale
 	Template   string
 	EnvVars    []string
 	ImgPath    string

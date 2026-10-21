@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -13,79 +14,42 @@ import (
 	lima "github.com/ranjandas/shikari/app/lima"
 )
 
-func (c ShikariCluster) GetCurrentVMCount() (uint8, uint8, error) {
-	vms, err := lima.GetClusterInstances(c.Name)
-	if err != nil {
-		return 0, 0, err
-	}
-
-	serverCount, clientCount := countVMs(vms)
-	return serverCount, clientCount, nil
-}
-
-func countVMs(vms []lima.LimaVM) (uint8, uint8) {
-
-	var serverCount, clientCount uint8
-
-	for _, vm := range vms {
-		if vm.IsClient() {
-			clientCount++
-		} else if vm.IsServer() {
-			serverCount++
-		}
-	}
-
-	return serverCount, clientCount
-}
-
 func (c ShikariCluster) CreateCluster(scale bool) error {
 
 	if !c.validateName() {
 		return fmt.Errorf("invalid cluster name %q: cluster name can only contain alphanumeric characters", c.Name)
 	}
 
-	serverCount, clientCount, err := c.GetCurrentVMCount()
+	instances, err := lima.GetClusterInstances(c.Name)
 	if err != nil {
 		return err
 	}
 
-	var serverVMs, clientVMs []string
+	existingServers := lima.GetServerInstances(instances)
+	existingClients := lima.GetClientInstances(instances)
+	serverCount, clientCount := uint8(len(existingServers)), uint8(len(existingClients))
+
 	var vmsToCreate, vmsToDestroy []string
-	var serverScaleDown, clientScaleDown bool
 
 	if scale {
-		// If request > existing count, generate server instance name from the existing count
-		if c.NumServers > serverCount {
-			serverVMs = c.generateServerInstanceNames(int(serverCount)+1, int(c.NumServers))
-			vmsToCreate = append(vmsToCreate, serverVMs...)
+		targetServers, targetClients := c.targetCounts(scale, serverCount, clientCount)
+		if targetServers == 0 && targetClients == 0 {
+			return fmt.Errorf("scaling cluster %s to 0 servers and 0 clients would remove all its VMs, use destroy instead", c.Name)
 		}
 
-		if c.NumServers < serverCount && c.NumServers != 0 {
-			serverVMs = c.generateServerInstanceNames(int(c.NumServers)+1, int(serverCount))
-			serverScaleDown = true
-			vmsToDestroy = append(vmsToDestroy, serverVMs...)
-		}
+		serversToCreate, serversToDestroy := c.planRole("srv", existingServers, targetServers)
+		clientsToCreate, clientsToDestroy := c.planRole("cli", existingClients, targetClients)
 
-		if c.NumClients > clientCount {
-			clientVMs = c.generateClientInstanceNames(int(clientCount)+1, int(c.NumClients))
-			vmsToCreate = append(vmsToCreate, clientVMs...)
-		}
+		vmsToCreate = append(serversToCreate, clientsToCreate...)
+		vmsToDestroy = append(serversToDestroy, clientsToDestroy...)
 
-		if c.NumClients < clientCount && c.NumClients != 0 {
-			clientVMs = c.generateClientInstanceNames(int(c.NumClients)+1, int(clientCount))
-			vmsToDestroy = append(vmsToDestroy, clientVMs...)
-			clientScaleDown = true
-		}
-
-		if (clientScaleDown || serverScaleDown) && !c.Force {
+		if len(vmsToDestroy) > 0 && !c.Force {
 			return fmt.Errorf("the following VMs will have to be destroyed: %s. Rerun the command with -f to force the scale down", strings.Join(vmsToDestroy, ","))
 		}
 	} else {
 		// start index from 1 if not a scaling request
-		serverVMs = c.generateServerInstanceNames(1, int(c.NumServers))
-		clientVMs = c.generateClientInstanceNames(1, int(c.NumClients))
-		vmsToCreate = append(vmsToCreate, serverVMs...)
-		vmsToCreate = append(vmsToCreate, clientVMs...)
+		vmsToCreate = append(vmsToCreate, c.generateServerInstanceNames(1, int(c.NumServers))...)
+		vmsToCreate = append(vmsToCreate, c.generateClientInstanceNames(1, int(c.NumClients))...)
 	}
 
 	tmpl, err := templateLocator(c.Template)
@@ -271,21 +235,51 @@ func (c ShikariCluster) validateName() bool {
 }
 
 // targetCounts returns the number of servers and clients the cluster will
-// have once the command completes. When scaling, a count of 0 means the flag
-// was not given and that role keeps its current count.
+// have once the command completes. When scaling, a role whose count was not
+// given keeps its current count.
 func (c ShikariCluster) targetCounts(scale bool, serverCount, clientCount uint8) (uint8, uint8) {
 	servers, clients := c.NumServers, c.NumClients
 
 	if scale {
-		if servers == 0 {
+		if !c.ServersSet {
 			servers = serverCount
 		}
-		if clients == 0 {
+		if !c.ClientsSet {
 			clients = clientCount
 		}
 	}
 
 	return servers, clients
+}
+
+// planRole returns the names of the VMs to create and to destroy to bring a
+// role ("srv" or "cli") from the existing VMs to target VMs. New VMs take the
+// lowest free numbers, so gaps left by deleted VMs are filled instead of
+// colliding with existing names. Scaling down removes the highest numbers.
+func (c ShikariCluster) planRole(role string, existing []lima.LimaVM, target uint8) ([]string, []string) {
+	var toCreate, toDestroy []string
+
+	used := make(map[int]bool)
+	for _, vm := range existing {
+		used[vm.Index()] = true
+	}
+
+	for n := 1; len(existing)+len(toCreate) < int(target); n++ {
+		if !used[n] {
+			toCreate = append(toCreate, fmt.Sprintf("%s-%s-%02d", c.Name, role, n))
+		}
+	}
+
+	if len(existing) > int(target) {
+		sorted := append([]lima.LimaVM{}, existing...)
+		sort.Slice(sorted, func(i, j int) bool { return sorted[i].Index() > sorted[j].Index() })
+
+		for _, vm := range sorted[:len(existing)-int(target)] {
+			toDestroy = append(toDestroy, vm.Name)
+		}
+	}
+
+	return toCreate, toDestroy
 }
 
 // templateLocator returns the template argument for `limactl start`. Template
