@@ -20,3 +20,28 @@ func TestCountVMs(t *testing.T) {
 		t.Errorf("countVMs = (%d, %d), want (2, 1)", servers, clients)
 	}
 }
+
+func TestTargetCounts(t *testing.T) {
+	tests := []struct {
+		name                          string
+		scale                         bool
+		numServers, numClients        uint8
+		currentServers, currentClient uint8
+		wantServers, wantClients      uint8
+	}{
+		{"create", false, 3, 2, 0, 0, 3, 2},
+		{"create without clients", false, 1, 0, 0, 0, 1, 0},
+		{"scale clients only", true, 0, 5, 3, 2, 3, 5},
+		{"scale servers only", true, 5, 0, 3, 2, 5, 2},
+		{"scale both", true, 1, 1, 3, 2, 1, 1},
+	}
+
+	for _, tt := range tests {
+		c := ShikariCluster{NumServers: tt.numServers, NumClients: tt.numClients}
+
+		servers, clients := c.targetCounts(tt.scale, tt.currentServers, tt.currentClient)
+		if servers != tt.wantServers || clients != tt.wantClients {
+			t.Errorf("%s: targetCounts = (%d, %d), want (%d, %d)", tt.name, servers, clients, tt.wantServers, tt.wantClients)
+		}
+	}
+}
