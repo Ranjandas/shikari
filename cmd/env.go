@@ -9,7 +9,9 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 
 	lima "github.com/ranjandas/shikari/app/lima"
@@ -93,6 +95,7 @@ type ClientConfigOpts struct {
 
 	instances  []lima.LimaVM
 	serverAddr string
+	serverEnv  map[string]string
 }
 
 var clientConfigOpts ClientConfigOpts
@@ -150,7 +153,46 @@ func (c *ClientConfigOpts) getServerAddress() (string, error) {
 	}
 
 	c.serverAddr = addr
+	c.serverEnv = server.Config.Env
 	return addr, nil
+}
+
+// setting returns a value the template set in the server's env, eg:
+// SHIKARI_CONSUL_TOKEN, or def if it did not. getServerAddress must be called
+// first.
+func (c *ClientConfigOpts) setting(key string, def string) string {
+	if value, ok := c.serverEnv[key]; ok && value != "" {
+		return value
+	}
+
+	return def
+}
+
+// port returns a port the template set in the server's env, or def.
+func (c *ClientConfigOpts) port(key string, def int) (int, error) {
+	value := c.setting(key, "")
+	if value == "" {
+		return def, nil
+	}
+
+	port, err := strconv.Atoi(value)
+	if err != nil || port < 1 || port > 65535 {
+		return 0, fmt.Errorf("%s=%q in the template is not a port number", key, value)
+	}
+
+	return port, nil
+}
+
+var shellSafe = regexp.MustCompile(`^[A-Za-z0-9._:/@%+=,-]+$`)
+
+// shellQuote quotes value for `eval $(shikari env ...)`, so a token from a
+// template can't run commands on the host.
+func shellQuote(value string) string {
+	if shellSafe.MatchString(value) {
+		return value
+	}
+
+	return "'" + strings.ReplaceAll(value, "'", `'\''`) + "'"
 }
 
 // pickServer returns the named server, eg: srv-02 or murphy-srv-02, or else
@@ -225,13 +267,19 @@ func (c *ClientConfigOpts) getConsulVariables() (string, error) {
 		return "", err
 	}
 	scheme := "http://"
-	port := 8500
-	bootstrapToken := "root" // consul bootstrap token
+	port, err := c.port("SHIKARI_CONSUL_HTTP_PORT", 8500)
+	if err != nil {
+		return "", err
+	}
+	bootstrapToken := c.setting("SHIKARI_CONSUL_TOKEN", "root") // consul bootstrap token
 	caCertVar := ""
 
 	if c.TLS {
 		scheme = "https://"
-		port = 8501
+		port, err = c.port("SHIKARI_CONSUL_HTTPS_PORT", 8501)
+		if err != nil {
+			return "", err
+		}
 		caCertVar = fmt.Sprintf("export CONSUL_CACERT=%s", c.getTLSCaCertPath("consul"))
 	}
 
@@ -239,7 +287,7 @@ func (c *ClientConfigOpts) getConsulVariables() (string, error) {
 
 	// env-variable=value
 	httpAddrVar := fmt.Sprintf("export CONSUL_HTTP_ADDR=%s", consulHTTPAddr)
-	tokenVar := fmt.Sprintf("export CONSUL_HTTP_TOKEN=%s", bootstrapToken)
+	tokenVar := fmt.Sprintf("export CONSUL_HTTP_TOKEN=%s", shellQuote(bootstrapToken))
 	insecureTLSVar := "export CONSUL_HTTP_SSL_VERIFY=false"
 
 	combinedVars := httpAddrVar
@@ -270,8 +318,11 @@ func (c *ClientConfigOpts) getNomadVariables() (string, error) {
 		return "", err
 	}
 	scheme := "http://"
-	port := 4646
-	bootstrapToken := "00000000-0000-0000-0000-000000000000" // consul bootstrap token
+	port, err := c.port("SHIKARI_NOMAD_PORT", 4646)
+	if err != nil {
+		return "", err
+	}
+	bootstrapToken := c.setting("SHIKARI_NOMAD_TOKEN", "00000000-0000-0000-0000-000000000000") // nomad bootstrap token
 	caCertVar := ""
 
 	if c.TLS {
@@ -283,7 +334,7 @@ func (c *ClientConfigOpts) getNomadVariables() (string, error) {
 
 	// env-variable=value
 	httpAddrVar := fmt.Sprintf("export NOMAD_ADDR=%s", nomadHTTPAddr)
-	tokenVar := fmt.Sprintf("export NOMAD_TOKEN=%s", bootstrapToken)
+	tokenVar := fmt.Sprintf("export NOMAD_TOKEN=%s", shellQuote(bootstrapToken))
 	insecureTLSVar := "export NOMAD_SKIP_VERIFY=true"
 
 	combinedVars := httpAddrVar
@@ -314,7 +365,10 @@ func (c *ClientConfigOpts) getVaultVariables() (string, error) {
 		return "", err
 	}
 	scheme := "http://"
-	port := 8200
+	port, err := c.port("SHIKARI_VAULT_PORT", 8200)
+	if err != nil {
+		return "", err
+	}
 	caCertVar := ""
 
 	if c.TLS {
@@ -353,7 +407,10 @@ func (c *ClientConfigOpts) getBoundaryVariables() (string, error) {
 		return "", err
 	}
 	scheme := "http://"
-	port := 9200
+	port, err := c.port("SHIKARI_BOUNDARY_PORT", 9200)
+	if err != nil {
+		return "", err
+	}
 	caCertVar := ""
 
 	if c.TLS {
