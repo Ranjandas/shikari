@@ -149,14 +149,17 @@ func DeleteLimaVM(vmName string, force bool, wg *sync.WaitGroup, errCh chan<- er
 	fmt.Printf("Lima VM %s deleted successfully.\n", vmName)
 }
 
-func ExecLimaVM(vmName string, command string, quiet bool) error {
+// ExecLimaVM runs a command inside the VM. A single argument is a command line
+// for a shell inside the VM, eg: 'cat /etc/hosts | grep srv'. Multiple
+// arguments are run as-is, keeping their quoting, eg: sh -c 'echo $HOSTNAME'.
+// Nothing is ever interpreted by a shell on the host.
+func ExecLimaVM(vmName string, args []string, quiet bool) error {
 
 	if !quiet {
 		fmt.Printf("\nRunning command against: %s\n\n", vmName)
 	}
 
-	// The command is interpreted by a shell inside the VM, never by a shell on the host
-	cmd := exec.Command("limactl", "shell", vmName, "sh", "-c", command)
+	cmd := exec.Command("limactl", execArgs(vmName, args)...)
 
 	// Set the output to os.Stdout and os.Stderr
 	cmd.Stdout = os.Stdout
@@ -168,6 +171,17 @@ func ExecLimaVM(vmName string, command string, quiet bool) error {
 	}
 
 	return nil
+}
+
+// execArgs returns the limactl arguments to run args inside the VM.
+func execArgs(vmName string, args []string) []string {
+	if len(args) == 1 {
+		return []string{"shell", vmName, "sh", "-c", args[0]}
+	}
+
+	// limactl shell stops parsing its own flags at the VM name, and quotes
+	// every argument for the guest shell
+	return append([]string{"shell", vmName}, args...)
 }
 
 // SpawnLimaVM creates and starts a Lima VM. env is added to the environment of
