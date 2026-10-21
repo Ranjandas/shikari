@@ -100,18 +100,6 @@ The supported products are `consul`, `nomad`, `vault`, `boundary` and `k3s`, and
 
 The variables point at the first running server. Use `--server` (`-s`) to pick another one, eg: `shikari env -n murphy -s srv-02 nomad`.
 
-A scenario that configures the products differently can set these in the `env` section of its template, and `env` reads them from the server it points at:
-
-| Variable | Default |
-|---|---|
-| `SHIKARI_CONSUL_TOKEN` | `root` |
-| `SHIKARI_CONSUL_HTTP_PORT` | `8500` |
-| `SHIKARI_CONSUL_HTTPS_PORT` | `8501` (with `--tls`) |
-| `SHIKARI_NOMAD_TOKEN` | `00000000-0000-0000-0000-000000000000` |
-| `SHIKARI_NOMAD_PORT` | `4646` |
-| `SHIKARI_VAULT_PORT` | `8200` |
-| `SHIKARI_BOUNDARY_PORT` | `9200` |
-
 Use `eval` to set these environment variables in the current shell session.
 
 ```
