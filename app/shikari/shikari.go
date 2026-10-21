@@ -88,10 +88,18 @@ func (c ShikariCluster) CreateCluster(scale bool) error {
 		vmsToCreate = append(vmsToCreate, clientVMs...)
 	}
 
+	tmpl, err := templateLocator(c.Template)
+	if err != nil {
+		return err
+	}
+
 	setter := yqSetter{}
 
 	// example: --set '.env.SHIKARI_CLUSTER_NAME = strenv(SHIKARI_YQ_VALUE_0) | ...'
 	setter.setEnv("SHIKARI_CLUSTER_NAME", c.Name)
+
+	// record the template, so that scale can create matching VMs
+	setter.setEnv("SHIKARI_TEMPLATE", tmpl)
 
 	// append server and client count variables
 	targetServers, targetClients := c.targetCounts(scale, serverCount, clientCount)
@@ -125,14 +133,6 @@ func (c ShikariCluster) CreateCluster(scale bool) error {
 
 		var wg sync.WaitGroup
 		errCh := make(chan error, len(vmsToCreate))
-
-		var tmpl string
-
-		if strings.HasSuffix(strings.ToLower(c.Template), ".yml") || strings.HasSuffix(strings.ToLower(c.Template), ".yaml") {
-			tmpl = c.Template
-		} else {
-			tmpl = fmt.Sprintf("template://%s", c.Template)
-		}
 
 		// // Override the image from the template
 		if len(c.ImgPath) > 0 {
@@ -286,6 +286,46 @@ func (c ShikariCluster) targetCounts(scale bool, serverCount, clientCount uint8)
 	}
 
 	return servers, clients
+}
+
+// templateLocator returns the template argument for `limactl start`. Template
+// files are made absolute, so the recorded SHIKARI_TEMPLATE works from any
+// directory.
+func templateLocator(template string) (string, error) {
+	lower := strings.ToLower(template)
+
+	switch {
+	case strings.Contains(template, "://"):
+		return template, nil
+	case strings.HasSuffix(lower, ".yml") || strings.HasSuffix(lower, ".yaml"):
+		absolutePath, err := filepath.Abs(template)
+		if err != nil {
+			return "", fmt.Errorf("cannot find the absolute path of the template %s: %w", template, err)
+		}
+		return absolutePath, nil
+	default:
+		return fmt.Sprintf("template://%s", template), nil
+	}
+}
+
+// InheritFrom makes a scale request create VMs like the existing VM of the
+// cluster: arch and template are taken from it unless set on the command line.
+// It returns a warning when the template could not be inherited.
+func (c *ShikariCluster) InheritFrom(vm lima.LimaVM, archSet bool, templateSet bool) string {
+	if !archSet && vm.Arch != "" {
+		c.Arch = vm.Arch
+	}
+
+	if templateSet {
+		return ""
+	}
+
+	if template := vm.Config.Env["SHIKARI_TEMPLATE"]; template != "" {
+		c.Template = template
+		return ""
+	}
+
+	return fmt.Sprintf("cluster %s does not record the template it was created with, using %s. Pass -t to choose another", c.Name, c.Template)
 }
 
 func launchMode(scale bool) string {
