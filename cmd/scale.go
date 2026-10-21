@@ -47,7 +47,7 @@ func init() {
 	scaleCmd.Flags().StringVarP(&cluster.Name, "name", "n", "", "name of the cluster")
 	scaleCmd.Flags().StringVarP(&cluster.Template, "template", "t", "./hashibox.yaml", "name of lima template for the VMs (defaults to the template the cluster was created with)")
 	scaleCmd.Flags().StringSliceVarP(&cluster.EnvVars, "env", "e", []string{}, "provide environment vars in the for key=value (can be used multiple times)")
-	scaleCmd.Flags().StringVarP(&cluster.ImgPath, "image", "i", "", "path to the cqow2 images to be used for the VMs, overriding the one in the template")
+	scaleCmd.Flags().StringVarP(&cluster.ImgPath, "image", "i", "", "path to the disk image (qcow2 or raw) to be used for the VMs, overriding the one in the template")
 	scaleCmd.Flags().BoolVarP(&cluster.Force, "force", "f", false, "force scaling down of the cluster VMs")
 	scaleCmd.Flags().StringVarP(&cluster.Arch, "arch", "a", defaultArch(), "the architecture of the VM (supported by Lima), defaults to the arch of the cluster. Eg: aarch64, x86_64")
 

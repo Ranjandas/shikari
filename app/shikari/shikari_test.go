@@ -1,8 +1,10 @@
 package shikari
 
 import (
+	"os"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
 
 	lima "github.com/ranjandas/shikari/app/lima"
@@ -110,5 +112,26 @@ func TestInheritFrom(t *testing.T) {
 	c = ShikariCluster{Name: "dev", Arch: "aarch64", Template: "./hashibox.yaml"}
 	if w := c.InheritFrom(old, false, false); w == "" || c.Template != "./hashibox.yaml" || c.Arch != "x86_64" {
 		t.Errorf("InheritFrom without recorded template = %+v, warning %q", c, w)
+	}
+}
+
+func TestCheckImage(t *testing.T) {
+	dir := t.TempDir()
+	image := filepath.Join(dir, "disk.raw")
+	if err := os.WriteFile(image, []byte("raw disk"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := checkImage(image); err != nil {
+		t.Errorf("checkImage(raw image) = %v", err)
+	}
+
+	err := checkImage(filepath.Join(dir, "typo.qcow2"))
+	if err == nil || !strings.Contains(err.Error(), "no such file") {
+		t.Errorf("checkImage(missing) = %v, want a no such file error", err)
+	}
+
+	if err := checkImage(dir); err == nil {
+		t.Error("checkImage(directory) did not fail")
 	}
 }
