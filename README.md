@@ -136,6 +136,8 @@ The `exec` command takes a command as argument and executes the command against 
 | `-c` | Runs only against the `client` VMs |
 | `-i <instance name>` | Targets a specific instance by its name (eg: `srv-01` or `cli-02`) |
 
+One of the flags is required. A single argument is run by a shell inside the VM, so it can use pipes and variables (eg: `'cat /etc/hosts | grep srv'`). Multiple arguments are run as-is, keeping their quoting (eg: `-- sh -c 'echo $HOSTNAME'`). `exec` exits with the worst exit status of the remote commands.
+
 ```
 $ shikari exec -n murphy -s sudo systemctl is-enabled consul
 
