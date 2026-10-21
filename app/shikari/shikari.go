@@ -80,7 +80,18 @@ func (c ShikariCluster) CreateCluster(scale bool) {
 		vmsToCreate = append(vmsToCreate, clientVMs...)
 	}
 
-	userDefinedEnvs := c.generateEnvArgs()
+	setter := yqSetter{}
+
+	// example: --set '.env.SHIKARI_CLUSTER_NAME = strenv(SHIKARI_YQ_VALUE_0) | ...'
+	setter.setEnv("SHIKARI_CLUSTER_NAME", c.Name)
+
+	// append server and client count variables
+	setter.setEnv("SHIKARI_SERVER_COUNT", fmt.Sprintf("%d", c.NumServers))
+	setter.setEnv("SHIKARI_CLIENT_COUNT", fmt.Sprintf("%d", c.NumClients))
+	setter.setEnv("SHIKARI_LAUNCH_MODE", launchMode(scale))
+
+	// append user defined environment variable
+	c.generateEnvArgs(&setter)
 
 	if len(vmsToCreate) > 0 {
 		if len(c.ImgPath) > 0 {
@@ -109,34 +120,20 @@ func (c ShikariCluster) CreateCluster(scale bool) {
 			tmpl = fmt.Sprintf("template://%s", c.Template)
 		}
 
-		// example: --set '. |= .env.SHIKARI_VM_MODE="server", .env.SHIKARI_CLUSTER_NAME="murphy"'
-		yqExpression := fmt.Sprintf(`.env.SHIKARI_CLUSTER_NAME="%s"`, c.Name)
-
-		// append server and client count variables
-		countEnvVars := fmt.Sprintf(`.env.SHIKARI_SERVER_COUNT="%d" | .env.SHIKARI_CLIENT_COUNT="%d"`, c.NumServers, c.NumClients)
-		launchModeEnvVar := fmt.Sprintf(`.env.SHIKARI_LAUNCH_MODE="%s"`, launchMode(scale))
-		yqExpression = fmt.Sprintf("%s |  %s | %s", yqExpression, countEnvVars, launchModeEnvVar)
-
-		// append user defined environment variable
-		if userDefinedEnvs != "" {
-			yqExpression = fmt.Sprintf("%s | %s", yqExpression, userDefinedEnvs)
-		}
-
 		// // Override the image from the template
 		if len(c.ImgPath) > 0 {
 			absolutePath, _ := filepath.Abs(c.ImgPath)
-			imageArg := fmt.Sprintf(`.images=[{"location": "%s"}]`, absolutePath)
-			yqExpression = fmt.Sprintf("%s | %s", yqExpression, imageArg)
+			setter.exprs = append(setter.exprs, ".images = [{}]")
+			setter.set(".images[0].location", absolutePath)
 		}
 
 		// Spawn Lima VMs concurrently
 		for _, vmName := range vmsToCreate {
 			wg.Add(1)
-			yqExpr := fmt.Sprintf(`%s | .env.SHIKARI_VM_MODE="%s"`, yqExpression, c.getInstanceMode(vmName))
+			vmSetter := setter.clone()
+			vmSetter.setEnv("SHIKARI_VM_MODE", c.getInstanceMode(vmName))
 
-			go lima.SpawnLimaVM(vmName, c.Arch, tmpl, yqExpr, &wg, errCh)
-			yqExpr = ""
-
+			go lima.SpawnLimaVM(vmName, c.Arch, tmpl, vmSetter.expression(), vmSetter.env, &wg, errCh)
 		}
 
 		// Wait for all goroutines to finish
@@ -198,10 +195,9 @@ func (c ShikariCluster) generateClientInstanceNames(start int, end int) []string
 	return s
 }
 
-func (c ShikariCluster) generateEnvArgs() string {
+func (c ShikariCluster) generateEnvArgs(setter *yqSetter) {
 	envs := c.EnvVars
 
-	var envCSV []string
 	for _, e := range envs {
 		if !strings.Contains(e, "=") {
 			fmt.Println("Invalid env format")
@@ -215,10 +211,11 @@ func (c ShikariCluster) generateEnvArgs() string {
 			os.Exit(1)
 		}
 
-		envCSV = append(envCSV, fmt.Sprintf(".env.%s=\"%s\"", kv[0], kv[1]))
+		if err := setter.setEnv(kv[0], kv[1]); err != nil {
+			fmt.Println("Invalid env format:", err)
+			os.Exit(1)
+		}
 	}
-
-	return strings.Join(envCSV, "| ")
 }
 
 func isQCOW2(filePath string) (bool, error) {
