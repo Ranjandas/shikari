@@ -5,6 +5,7 @@ package cmd
 
 import (
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -35,9 +36,8 @@ var destroyCmd = &cobra.Command{
 			return destroyVM(allInstances, true)
 		}
 
-		stoppedInstances := lima.GetInstancesByStatus(allInstances, "stopped")
-		if len(allInstances) != len(stoppedInstances) {
-			return fmt.Errorf("not all instances in the cluster %s are stopped, cannot destroy! Stop the cluster or rerun the command with -f", cluster.Name)
+		if blocking := notStopped(allInstances); len(blocking) > 0 {
+			return fmt.Errorf("cannot destroy cluster %s, these instances are not stopped: %s. Stop them or rerun the command with -f", cluster.Name, strings.Join(blocking, ", "))
 		}
 
 		return destroyVM(allInstances, false)
@@ -50,6 +50,20 @@ func init() {
 	destroyCmd.Flags().StringVarP(&cluster.Name, "name", "n", "", "name of the cluster")
 	destroyCmd.Flags().BoolVarP(&cluster.Force, "force", "f", false, "force destruction of the cluster even when VMs are running")
 	destroyCmd.MarkFlagRequired("name")
+}
+
+// notStopped returns "name (status)" for every instance that is not stopped,
+// eg: running or broken VMs, which block a destroy without -f.
+func notStopped(instances []lima.LimaVM) []string {
+	var blocking []string
+
+	for _, instance := range instances {
+		if strings.ToLower(instance.Status) != "stopped" {
+			blocking = append(blocking, fmt.Sprintf("%s (%s)", instance.Name, instance.Status))
+		}
+	}
+
+	return blocking
 }
 
 func destroyVM(instances []lima.LimaVM, force bool) error {
