@@ -49,7 +49,7 @@ func init() {
 	scaleCmd.Flags().StringSliceVarP(&cluster.EnvVars, "env", "e", []string{}, "provide environment vars in the for key=value (can be used multiple times)")
 	scaleCmd.Flags().StringVarP(&cluster.ImgPath, "image", "i", "", "path to the cqow2 images to be used for the VMs, overriding the one in the template")
 	scaleCmd.Flags().BoolVarP(&cluster.Force, "force", "f", false, "force scaling down of the cluster VMs")
-	scaleCmd.Flags().StringVarP(&cluster.Arch, "arch", "a", "aarch64", "the architecture of the VM (supported by Lima). Eg: aarch64, s390x (defaults to the arch of the cluster)")
+	scaleCmd.Flags().StringVarP(&cluster.Arch, "arch", "a", defaultArch(), "the architecture of the VM (supported by Lima), defaults to the arch of the cluster. Eg: aarch64, x86_64")
 
 	scaleCmd.MarkFlagRequired("name")
 	scaleCmd.MarkFlagsOneRequired("clients", "servers")
