@@ -2,6 +2,7 @@ package lima
 
 import (
 	"regexp"
+	"strconv"
 )
 
 // clusterVMPattern matches the names Shikari gives cluster VMs, eg: murphy-srv-01, murphy-cli-02
@@ -37,6 +38,22 @@ func (vm LimaVM) IsClient() bool {
 func (vm LimaVM) IsServer() bool {
 	match := clusterVMPattern.FindStringSubmatch(vm.Name)
 	return match != nil && match[2] == "srv"
+}
+
+// Index returns the number of a Shikari VM, eg: 2 for murphy-srv-02, or 0 if
+// the VM does not follow the Shikari naming scheme.
+func (vm LimaVM) Index() int {
+	match := clusterVMPattern.FindStringSubmatch(vm.Name)
+	if match == nil {
+		return 0
+	}
+
+	index, err := strconv.Atoi(match[3])
+	if err != nil {
+		return 0
+	}
+
+	return index
 }
 
 // FilterClusterInstances returns the instances that belong to the named cluster.
@@ -77,6 +94,19 @@ func GetClusterInstances(clusterName string) ([]LimaVM, error) {
 	}
 
 	return FilterClusterInstances(instances, clusterName), nil
+}
+
+// GetClientInstances returns only the client VMs from the given instances.
+func GetClientInstances(instances []LimaVM) []LimaVM {
+	var filteredInstances []LimaVM
+
+	for _, instance := range instances {
+		if instance.IsClient() {
+			filteredInstances = append(filteredInstances, instance)
+		}
+	}
+
+	return filteredInstances
 }
 
 // GetServerInstances returns only the server VMs from the given instances.

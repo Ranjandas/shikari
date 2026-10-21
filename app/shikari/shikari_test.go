@@ -2,45 +2,68 @@ package shikari
 
 import (
 	"path/filepath"
+	"reflect"
 	"testing"
 
 	lima "github.com/ranjandas/shikari/app/lima"
 )
 
-func TestCountVMs(t *testing.T) {
-	vms := []lima.LimaVM{
-		{Name: "dev-srv-01"},
-		{Name: "dev-srv-02"},
-		{Name: "dev-cli-01"},
-		// not a server or client, must not be counted as a server
-		{Name: "dev-postgres"},
+func vms(names ...string) []lima.LimaVM {
+	var v []lima.LimaVM
+	for _, n := range names {
+		v = append(v, lima.LimaVM{Name: n})
+	}
+	return v
+}
+
+func TestPlanRole(t *testing.T) {
+	c := ShikariCluster{Name: "dev"}
+
+	tests := []struct {
+		name        string
+		existing    []lima.LimaVM
+		target      uint8
+		wantCreate  []string
+		wantDestroy []string
+	}{
+		{"scale up", vms("dev-cli-01", "dev-cli-02"), 4, []string{"dev-cli-03", "dev-cli-04"}, nil},
+		{"fill gap", vms("dev-cli-01", "dev-cli-03"), 3, []string{"dev-cli-02"}, nil},
+		{"fill gap and grow", vms("dev-cli-02"), 3, []string{"dev-cli-01", "dev-cli-03"}, nil},
+		{"scale down removes highest", vms("dev-cli-03", "dev-cli-01", "dev-cli-04"), 1, nil, []string{"dev-cli-04", "dev-cli-03"}},
+		{"scale to zero", vms("dev-cli-01", "dev-cli-02"), 0, nil, []string{"dev-cli-02", "dev-cli-01"}},
+		{"unchanged", vms("dev-cli-01"), 1, nil, nil},
+		{"from nothing", nil, 2, []string{"dev-cli-01", "dev-cli-02"}, nil},
 	}
 
-	servers, clients := countVMs(vms)
-	if servers != 2 || clients != 1 {
-		t.Errorf("countVMs = (%d, %d), want (2, 1)", servers, clients)
+	for _, tt := range tests {
+		create, destroy := c.planRole("cli", tt.existing, tt.target)
+		if !reflect.DeepEqual(create, tt.wantCreate) || !reflect.DeepEqual(destroy, tt.wantDestroy) {
+			t.Errorf("%s: planRole = (%v, %v), want (%v, %v)", tt.name, create, destroy, tt.wantCreate, tt.wantDestroy)
+		}
 	}
 }
 
 func TestTargetCounts(t *testing.T) {
 	tests := []struct {
-		name                          string
-		scale                         bool
-		numServers, numClients        uint8
-		currentServers, currentClient uint8
-		wantServers, wantClients      uint8
+		name                           string
+		scale                          bool
+		numServers, numClients         uint8
+		serversSet, clientsSet         bool
+		currentServers, currentClients uint8
+		wantServers, wantClients       uint8
 	}{
-		{"create", false, 3, 2, 0, 0, 3, 2},
-		{"create without clients", false, 1, 0, 0, 0, 1, 0},
-		{"scale clients only", true, 0, 5, 3, 2, 3, 5},
-		{"scale servers only", true, 5, 0, 3, 2, 5, 2},
-		{"scale both", true, 1, 1, 3, 2, 1, 1},
+		{"create", false, 3, 2, true, true, 0, 0, 3, 2},
+		{"create without clients", false, 1, 0, true, false, 0, 0, 1, 0},
+		{"scale clients only", true, 0, 5, false, true, 3, 2, 3, 5},
+		{"scale servers only", true, 5, 0, true, false, 3, 2, 5, 2},
+		{"scale both", true, 1, 1, true, true, 3, 2, 1, 1},
+		{"scale clients to zero", true, 0, 0, false, true, 3, 2, 3, 0},
 	}
 
 	for _, tt := range tests {
-		c := ShikariCluster{NumServers: tt.numServers, NumClients: tt.numClients}
+		c := ShikariCluster{NumServers: tt.numServers, NumClients: tt.numClients, ServersSet: tt.serversSet, ClientsSet: tt.clientsSet}
 
-		servers, clients := c.targetCounts(tt.scale, tt.currentServers, tt.currentClient)
+		servers, clients := c.targetCounts(tt.scale, tt.currentServers, tt.currentClients)
 		if servers != tt.wantServers || clients != tt.wantClients {
 			t.Errorf("%s: targetCounts = (%d, %d), want (%d, %d)", tt.name, servers, clients, tt.wantServers, tt.wantClients)
 		}
