@@ -48,14 +48,17 @@ If available, license environment variables will be automatically configured. Se
 The `list` command is used to list the clusters and their VMs. You can get VMs of a specific cluster by passing the `--name/-n` flag.
 
 ```
-$ CLUSTER       VM NAME             SATUS         DISK(GB)       MEMORY(GB)       CPUS       IMAGE
-murphy        murphy-cli-01       Running       100            4                4          /Users/ranjan/workspace/github/shikari-scenarios/packer/.artifacts/c-1.18-n-1.7/c-1.18-n-1.7.qcow2
-murphy        murphy-cli-02       Running       100            4                4          /Users/ranjan/workspace/github/shikari-scenarios/packer/.artifacts/c-1.18-n-1.7/c-1.18-n-1.7.qcow2
-murphy        murphy-cli-03       Running       100            4                4          /Users/ranjan/workspace/github/shikari-scenarios/packer/.artifacts/c-1.18-n-1.7/c-1.18-n-1.7.qcow2
-murphy        murphy-srv-01       Running       100            4                4          /Users/ranjan/workspace/github/shikari-scenarios/packer/.artifacts/c-1.18-n-1.7/c-1.18-n-1.7.qcow2
-murphy        murphy-srv-02       Running       100            4                4          /Users/ranjan/workspace/github/shikari-scenarios/packer/.artifacts/c-1.18-n-1.7/c-1.18-n-1.7.qcow2
-murphy        murphy-srv-03       Running       100            4                4          /Users/ranjan/workspace/github/shikari-scenarios/packer/.artifacts/c-1.18-n-1.7/c-1.18-n-1.7.qcow2
+$ shikari list -n murphy
+CLUSTER    VM NAME          ARCH       IP                STATUS     SCENARIO                   DISK(GB)    MEMORY(GB)    CPUS    IMAGE
+murphy     murphy-cli-01    aarch64    192.168.105.10    Running    nomad-consul-quickstart    100         4             4       /Users/ranjan/workspace/github/shikari-scenarios/packer/.artifacts/c-1.18-n-1.7/c-1.18-n-1.7.qcow2
+murphy     murphy-cli-02    aarch64    192.168.105.11    Running    nomad-consul-quickstart    100         4             4       /Users/ranjan/workspace/github/shikari-scenarios/packer/.artifacts/c-1.18-n-1.7/c-1.18-n-1.7.qcow2
+murphy     murphy-cli-03    aarch64    192.168.105.12    Running    nomad-consul-quickstart    100         4             4       /Users/ranjan/workspace/github/shikari-scenarios/packer/.artifacts/c-1.18-n-1.7/c-1.18-n-1.7.qcow2
+murphy     murphy-srv-01    aarch64    192.168.105.13    Running    nomad-consul-quickstart    100         4             4       /Users/ranjan/workspace/github/shikari-scenarios/packer/.artifacts/c-1.18-n-1.7/c-1.18-n-1.7.qcow2
+murphy     murphy-srv-02    aarch64    192.168.105.14    Running    nomad-consul-quickstart    100         4             4       /Users/ranjan/workspace/github/shikari-scenarios/packer/.artifacts/c-1.18-n-1.7/c-1.18-n-1.7.qcow2
+murphy     murphy-srv-03    aarch64    192.168.105.15    Running    nomad-consul-quickstart    100         4             4       /Users/ranjan/workspace/github/shikari-scenarios/packer/.artifacts/c-1.18-n-1.7/c-1.18-n-1.7.qcow2
 ```
+
+`IP` is the address the host can reach the VM on, and is empty for stopped VMs. `SCENARIO` comes from the `SHIKARI_SCENARIO_NAME` env variable of the template. Pass `--no-header` to leave out the header line, eg: for scripts.
 
 #### Helper Variables
 
