@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"regexp"
 	"strings"
 	"text/tabwriter"
 
@@ -43,22 +42,20 @@ func listInstances(clusterName string) {
 		fmt.Fprintln(w, "CLUSTER\tVM NAME\tARCH\tIP(lima0)\tSTATUS\tSCENARIO\tDISK(GB)\tMEMORY(GB)\tCPUS\tIMAGE")
 	}
 
-	for _, vm := range vms {
-		if isShikariVM(vm.Name) {
+	if clusterName != "" {
+		vms = lima.FilterClusterInstances(vms, clusterName)
+	} else {
+		vms = lima.FilterShikariInstances(vms)
+	}
 
-			if len(vm.Name) > 0 {
-				if !strings.HasPrefix(vm.Name, clusterName) {
-					continue //skip printing the
-				}
-			}
-			fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\t%d\t%d\t%d\t%s\n", getClusterNameFromInstanceName(vm.Name),
-				vm.Name, vm.Arch, vm.GetIPAddress(),
-				vm.Status, vm.GetScenarioNameFromEnv(),
-				bytesToGiB(vm.Disk), bytesToGiB(vm.Memory),
-				vm.Cpus,
-				getImageLocation(vm),
-			)
-		}
+	for _, vm := range vms {
+		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\t%d\t%d\t%d\t%s\n", vm.ClusterName(),
+			vm.Name, vm.Arch, vm.GetIPAddress(),
+			vm.Status, vm.GetScenarioNameFromEnv(),
+			bytesToGiB(vm.Disk), bytesToGiB(vm.Memory),
+			vm.Cpus,
+			getImageLocation(vm),
+		)
 	}
 	w.Flush()
 }
@@ -106,28 +103,6 @@ func getImageLocation(vm lima.LimaVM) string {
 	}
 
 	return location
-}
-
-func getClusterNameFromInstanceName(name string) string {
-	clusterName := strings.Split(name, "-")
-
-	return clusterName[0]
-}
-
-func isShikariVM(name string) bool {
-	pattern := `^([a-zA-Z0-9]+)-(srv|cli)-(\d+)$`
-
-	regex, err := regexp.Compile(pattern)
-
-	if err != nil {
-		fmt.Println("Error compiling regex:", err)
-	}
-
-	if match := regex.MatchString(name); match {
-		return true
-	}
-
-	return false
 }
 
 func bytesToGiB(bytes uint64) uint64 {

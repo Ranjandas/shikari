@@ -29,7 +29,7 @@ You can run commands against specific class of servers (clients, servers or all)
 
 		clusterName, _ := cmd.Flags().GetString("name")
 
-		instances := lima.GetInstancesByStatus(lima.GetInstancesByPrefix(clusterName), "running")
+		instances := lima.GetInstancesByStatus(lima.GetClusterInstances(clusterName), "running")
 
 		if len(instances) == 0 {
 			fmt.Printf("There are no running instances in the cluster %s.\n", clusterName)

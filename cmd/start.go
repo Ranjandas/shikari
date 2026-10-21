@@ -23,7 +23,7 @@ Exmple:
 $ shikari start -n murphy`,
 	Run: func(cmd *cobra.Command, args []string) {
 		//fmt.Println("start called")
-		instances := lima.GetInstancesByPrefix(cluster.Name)
+		instances := lima.GetClusterInstances(cluster.Name)
 		stoppedInstances := lima.GetInstancesByStatus(instances, "stopped")
 
 		if len(stoppedInstances) == 0 {

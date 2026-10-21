@@ -24,7 +24,7 @@ var destroyCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		//fmt.Println("destroy called")
 
-		allInstances := lima.GetInstancesByPrefix(cluster.Name)
+		allInstances := lima.GetClusterInstances(cluster.Name)
 
 		if len(allInstances) == 0 {
 			fmt.Printf("No instances in the cluster %s\n", cluster.Name)
