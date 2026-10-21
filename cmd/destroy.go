@@ -21,31 +21,26 @@ var destroyCmd = &cobra.Command{
 	Exmple:
 
 	$ shikari destroy -n murphy`,
-	Run: func(cmd *cobra.Command, args []string) {
-		//fmt.Println("destroy called")
-
-		allInstances := lima.GetClusterInstances(cluster.Name)
+	RunE: func(cmd *cobra.Command, args []string) error {
+		allInstances, err := lima.GetClusterInstances(cluster.Name)
+		if err != nil {
+			return err
+		}
 
 		if len(allInstances) == 0 {
-			fmt.Printf("No instances in the cluster %s\n", cluster.Name)
-			return
+			return fmt.Errorf("no instances in the cluster %s", cluster.Name)
 		}
 
 		if cluster.Force {
-			destroyVM(allInstances, true)
-			return
-		}
-
-		runningInstances := lima.GetInstancesByStatus(allInstances, "running")
-		if len(runningInstances) > 0 {
-			fmt.Println("There are running instances in the cluster, cannot destroy!")
-			return
+			return destroyVM(allInstances, true)
 		}
 
 		stoppedInstances := lima.GetInstancesByStatus(allInstances, "stopped")
-		if len(allInstances) == len(stoppedInstances) {
-			destroyVM(allInstances, false)
+		if len(allInstances) != len(stoppedInstances) {
+			return fmt.Errorf("not all instances in the cluster %s are stopped, cannot destroy! Stop the cluster or rerun the command with -f", cluster.Name)
 		}
+
+		return destroyVM(allInstances, false)
 	},
 }
 
@@ -57,7 +52,7 @@ func init() {
 	destroyCmd.MarkFlagRequired("name")
 }
 
-func destroyVM(instances []lima.LimaVM, force bool) {
+func destroyVM(instances []lima.LimaVM, force bool) error {
 	var wg sync.WaitGroup
 	errCh := make(chan error, len(instances))
 
@@ -72,11 +67,5 @@ func destroyVM(instances []lima.LimaVM, force bool) {
 	// Wait for all goroutines to finish
 	wg.Wait()
 
-	// Close error channel after all goroutines are done
-	close(errCh)
-
-	// Check for any errors reported by the goroutines
-	for err := range errCh {
-		fmt.Println(err)
-	}
+	return collectErrors(errCh)
 }

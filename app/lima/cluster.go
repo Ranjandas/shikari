@@ -70,8 +70,13 @@ func FilterShikariInstances(instances []LimaVM) []LimaVM {
 }
 
 // GetClusterInstances returns the Lima VMs that belong to the named cluster.
-func GetClusterInstances(clusterName string) []LimaVM {
-	return FilterClusterInstances(ListInstances(), clusterName)
+func GetClusterInstances(clusterName string) ([]LimaVM, error) {
+	instances, err := ListInstances()
+	if err != nil {
+		return nil, err
+	}
+
+	return FilterClusterInstances(instances, clusterName), nil
 }
 
 // GetServerInstances returns only the server VMs from the given instances.

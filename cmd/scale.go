@@ -13,8 +13,8 @@ var scaleCmd = &cobra.Command{
 	Short:   "Scale the number of VMs in the cluster",
 	Long:    `Scale the number of VMs in the cluster`,
 	PreRunE: loadLicenses,
-	Run: func(cmd *cobra.Command, args []string) {
-		cluster.CreateCluster(true)
+	RunE: func(cmd *cobra.Command, args []string) error {
+		return cluster.CreateCluster(true)
 	},
 }
 
