@@ -213,6 +213,38 @@ If a license environment variable is specified manually, e.g. `--env CONSUL_LICE
 
 > NOTE: Licenses are passed to the VMs as environment variables, so Lima stores their contents in plain text in each VM's `~/.lima/<vm-name>/lima.yaml`, and Lima also adds them to `/etc/environment` inside the VMs, which every user in the VM can read. They are not passed on the command line, so they don't show up in `ps`. Destroying the cluster removes the copies in `~/.lima`. Don't share a VM's `lima.yaml` or `~/.lima` directory with a license loaded.
 
+## Shell Completion
+
+`shikari completion <shell>` prints a completion script for `bash`, `zsh`, `fish` or `powershell`. Run `shikari completion <shell> --help` for all the options.
+
+**zsh** (completion must be enabled, eg: `autoload -U compinit; compinit` in `~/.zshrc`):
+
+```
+# macOS, with Homebrew
+$ shikari completion zsh > $(brew --prefix)/share/zsh/site-functions/_shikari
+
+# Linux
+$ shikari completion zsh > "${fpath[1]}/_shikari"
+```
+
+**bash** (needs the `bash-completion` package):
+
+```
+# macOS, with Homebrew
+$ shikari completion bash > $(brew --prefix)/etc/bash_completion.d/shikari
+
+# Linux
+$ shikari completion bash | sudo tee /etc/bash_completion.d/shikari > /dev/null
+```
+
+**fish**:
+
+```
+$ shikari completion fish > ~/.config/fish/completions/shikari.fish
+```
+
+Start a new shell afterwards. To try completion in the current shell only, run `source <(shikari completion zsh)` (or `bash`), or `shikari completion fish | source`.
+
 ## Feedback
 
 Please share your feedback by creating opening a thread in the Shikari [Discussions](https://github.com/Ranjandas/shikari/discussions).
