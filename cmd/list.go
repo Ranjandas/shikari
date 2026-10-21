@@ -42,7 +42,7 @@ func listInstances(clusterName string) error {
 	w := tabwriter.NewWriter(os.Stdout, 4, 8, 4, byte(' '), 0)
 
 	if !noheader {
-		fmt.Fprintln(w, "CLUSTER\tVM NAME\tARCH\tIP(lima0)\tSTATUS\tSCENARIO\tDISK(GB)\tMEMORY(GB)\tCPUS\tIMAGE")
+		fmt.Fprintln(w, "CLUSTER\tVM NAME\tARCH\tIP\tSTATUS\tSCENARIO\tDISK(GB)\tMEMORY(GB)\tCPUS\tIMAGE")
 	}
 
 	if clusterName != "" {
@@ -51,9 +51,11 @@ func listInstances(clusterName string) error {
 		vms = lima.FilterShikariInstances(vms)
 	}
 
+	addresses := lima.GetIPAddresses(vms)
+
 	for _, vm := range vms {
 		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\t%d\t%d\t%d\t%s\n", vm.ClusterName(),
-			vm.Name, vm.Arch, vm.GetIPAddress(),
+			vm.Name, vm.Arch, addresses[vm.Name],
 			vm.Status, vm.GetScenarioNameFromEnv(),
 			bytesToGiB(vm.Disk), bytesToGiB(vm.Memory),
 			vm.Cpus,
