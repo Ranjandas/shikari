@@ -180,6 +180,8 @@ Files should be named for the product they're for, i.e. `~/.shikari/consul.hclic
 
 If a license environment variable is specified manually, e.g. `--env CONSUL_LICENSE=$(cat scenario_specific_consul_license.hclic)`, auto-loading will be skipped for that product.
 
+> NOTE: Licenses are passed to the VMs as environment variables, so Lima stores their contents in plain text in each VM's `~/.lima/<vm-name>/lima.yaml`, and Lima also adds them to `/etc/environment` inside the VMs, which every user in the VM can read. They are not passed on the command line, so they don't show up in `ps`. Destroying the cluster removes the copies in `~/.lima`. Don't share a VM's `lima.yaml` or `~/.lima` directory with a license loaded.
+
 ## Feedback
 
 Please share your feedback by creating opening a thread in the Shikari [Discussions](https://github.com/Ranjandas/shikari/discussions).
