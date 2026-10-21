@@ -88,6 +88,8 @@ export NOMAD_ADDR=https://192.168.105.13:4646
 export NOMAD_TOKEN=00000000-0000-0000-0000-000000000000
 ```
 
+The variables point at the first running server. Use `--server` (`-s`) to pick another one, eg: `shikari env -n murphy -s srv-02 nomad`.
+
 Use `eval` to set these environment variables in the current shell session.
 
 ```

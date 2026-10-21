@@ -6,10 +6,10 @@ package cmd
 import (
 	"errors"
 	"fmt"
-	"math/rand"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	lima "github.com/ranjandas/shikari/app/lima"
@@ -30,7 +30,10 @@ shikari env -n murphy -t consul,nomad
 export CONSUL_HTTP_ADDR=https://xxx.xxx
 export CONSUL_CACERT=xxx/consul-agent-ca.pem
 export NOMAD_ADDR=https://xxx.xxx
-export NOMAD_CACERT=xxx/nomad-agent-ca.pem`,
+export NOMAD_CACERT=xxx/nomad-agent-ca.pem
+
+The first running server is used, unless one is picked with --server:
+shikari env -n murphy -s srv-02 nomad`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 
 		instances, err := lima.GetClusterInstances(cluster.Name)
@@ -75,6 +78,7 @@ func init() {
 	envCmd.Flags().BoolVarP(&clientConfigOpts.TLS, "tls", "t", false, "prints the TLS variables")
 	envCmd.Flags().BoolVarP(&clientConfigOpts.Insecure, "insecure", "i", false, "prints the skip TLS Verify variables")
 	envCmd.Flags().BoolVarP(&clientConfigOpts.Unset, "unset", "u", false, "unset the variables insetad of export")
+	envCmd.Flags().StringVarP(&clientConfigOpts.Server, "server", "s", "", "server to point at, eg: srv-02 (default: the first running server)")
 
 	envCmd.MarkFlagRequired("name")
 }
@@ -85,6 +89,7 @@ type ClientConfigOpts struct {
 	ACL      bool
 	Insecure bool
 	Unset    bool
+	Server   string
 
 	instances  []lima.LimaVM
 	serverAddr string
@@ -126,22 +131,18 @@ func (c *ClientConfigOpts) printClientConfigEnvs(product string) error {
 	return nil
 }
 
-// getRandomServerAddress returns the address of a random running server. The
-// server is picked once, so all the products point at the same one.
-func (c *ClientConfigOpts) getRandomServerAddress() (string, error) {
+// getServerAddress returns the address of the server picked with --server, or
+// else of the first running server. The server is looked up once, so all the
+// products point at the same one.
+func (c *ClientConfigOpts) getServerAddress() (string, error) {
 	if c.serverAddr != "" {
 		return c.serverAddr, nil
 	}
 
-	// always get the instances of type server "-srv"
-	runningInstances := lima.GetInstancesByStatus(lima.GetServerInstances(c.instances), "running")
-
-	if !(len(runningInstances) > 0) {
-		return "", fmt.Errorf("there are no running servers in the cluster %s", c.Name)
+	server, err := pickServer(c.instances, c.Name, c.Server)
+	if err != nil {
+		return "", err
 	}
-
-	randomIndex := rand.Intn(len(runningInstances))
-	server := runningInstances[randomIndex]
 
 	addr := server.GetIPAddress()
 	if addr == "" {
@@ -150,6 +151,54 @@ func (c *ClientConfigOpts) getRandomServerAddress() (string, error) {
 
 	c.serverAddr = addr
 	return addr, nil
+}
+
+// pickServer returns the named server, eg: srv-02 or murphy-srv-02, or else
+// the running server with the lowest number.
+func pickServer(instances []lima.LimaVM, clusterName string, server string) (lima.LimaVM, error) {
+	servers := lima.GetServerInstances(instances)
+	sort.Slice(servers, func(i, j int) bool { return servers[i].Index() < servers[j].Index() })
+
+	if server != "" {
+		name := server
+		if !strings.HasPrefix(name, clusterName+"-") {
+			name = clusterName + "-" + server
+		}
+
+		for _, vm := range servers {
+			if vm.Name != name {
+				continue
+			}
+			if !strings.EqualFold(vm.Status, "running") {
+				return lima.LimaVM{}, fmt.Errorf("server %s is %s, start it with: shikari start -n %s", name, strings.ToLower(vm.Status), clusterName)
+			}
+			return vm, nil
+		}
+
+		return lima.LimaVM{}, fmt.Errorf("server %s not found in the cluster %s, the servers are: %s", name, clusterName, strings.Join(lima.Names(servers), ", "))
+	}
+
+	for _, vm := range servers {
+		if strings.EqualFold(vm.Status, "running") {
+			return vm, nil
+		}
+	}
+
+	if len(servers) == 0 {
+		return lima.LimaVM{}, fmt.Errorf("the cluster %s has no servers", clusterName)
+	}
+
+	return lima.LimaVM{}, fmt.Errorf("there are no running servers in the cluster %s (%s), start them with: shikari start -n %s", clusterName, strings.Join(notRunning(servers), ", "), clusterName)
+}
+
+// notRunning returns "name (status)" for every instance, eg: murphy-srv-01 (stopped).
+func notRunning(instances []lima.LimaVM) []string {
+	var states []string
+	for _, vm := range instances {
+		states = append(states, fmt.Sprintf("%s (%s)", vm.Name, strings.ToLower(vm.Status)))
+	}
+
+	return states
 }
 
 // firstServer returns the cluster's <name>-srv-01 VM.
@@ -171,7 +220,7 @@ func (c *ClientConfigOpts) getConsulVariables() (string, error) {
 		return "unset CONSUL_HTTP_ADDR\nunset CONSUL_HTTP_TOKEN\nunset CONSUL_HTTP_SSL_VERIFY\nunset CONSUL_CACERT", nil
 	}
 
-	addr, err := c.getRandomServerAddress()
+	addr, err := c.getServerAddress()
 	if err != nil {
 		return "", err
 	}
@@ -216,7 +265,7 @@ func (c *ClientConfigOpts) getNomadVariables() (string, error) {
 		return "unset NOMAD_ADDR\nunset NOMAD_TOKEN\nunset NOMAD_SKIP_VERIFY\nunset NOMAD_CACERT", nil
 	}
 
-	addr, err := c.getRandomServerAddress()
+	addr, err := c.getServerAddress()
 	if err != nil {
 		return "", err
 	}
@@ -260,7 +309,7 @@ func (c *ClientConfigOpts) getVaultVariables() (string, error) {
 		return "unset VAULT_ADDR\nunset VAULT_SKIP_VERIFY\nunset VAULT_CACERT", nil
 	}
 
-	addr, err := c.getRandomServerAddress()
+	addr, err := c.getServerAddress()
 	if err != nil {
 		return "", err
 	}
@@ -299,7 +348,7 @@ func (c *ClientConfigOpts) getBoundaryVariables() (string, error) {
 		return "unset BOUNDARY_ADDR\nunset BOUNDARY_TLS_INSECURE\nunset BOUNDARY_CACERT", nil
 	}
 
-	addr, err := c.getRandomServerAddress()
+	addr, err := c.getServerAddress()
 	if err != nil {
 		return "", err
 	}
