@@ -13,18 +13,18 @@ import (
 )
 
 func (c ShikariCluster) GetCurrentVMCount() (uint8, uint8) {
+	return countVMs(lima.GetClusterInstances(c.Name))
+}
+
+func countVMs(vms []lima.LimaVM) (uint8, uint8) {
 
 	var serverCount, clientCount uint8
 
-	vms := lima.GetInstancesByPrefix(c.Name)
-
-	if len(vms) > 0 {
-		for _, vm := range vms {
-			if strings.HasPrefix(vm.Name, fmt.Sprintf("%s-cli", c.Name)) {
-				clientCount++
-			} else {
-				serverCount++
-			}
+	for _, vm := range vms {
+		if vm.IsClient() {
+			clientCount++
+		} else if vm.IsServer() {
+			serverCount++
 		}
 	}
 

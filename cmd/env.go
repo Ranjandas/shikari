@@ -32,7 +32,7 @@ export NOMAD_ADDR=https://xxx.xxx
 export NOMAD_CACERT=xxx/nomad-agent-ca.pem`,
 	Run: func(cmd *cobra.Command, args []string) {
 
-		if len(lima.GetInstancesByPrefix(cluster.Name)) == 0 {
+		if len(lima.GetClusterInstances(cluster.Name)) == 0 {
 			fmt.Printf("Cluster \"%s\" not found.\n", cluster.Name)
 			return
 		}
@@ -104,7 +104,7 @@ func (c ClientConfigOpts) printClientConfigEnvs(product string) {
 
 func (c ClientConfigOpts) getRandomServer() lima.LimaVM {
 	// always get the instances of type server "-srv"
-	instances := lima.GetInstancesByPrefix(fmt.Sprintf("%s-srv", c.Name))
+	instances := lima.GetServerInstances(lima.GetClusterInstances(c.Name))
 	runningInstances := lima.GetInstancesByStatus(instances, "running")
 
 	if !(len(runningInstances) > 0) {

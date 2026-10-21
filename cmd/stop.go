@@ -23,7 +23,7 @@ var stopCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		//fmt.Println("stop called")
 
-		instances := lima.GetInstancesByPrefix(cluster.Name)
+		instances := lima.GetClusterInstances(cluster.Name)
 		runningInstances := lima.GetInstancesByStatus(instances, "running")
 
 		if len(runningInstances) == 0 {
