@@ -181,12 +181,10 @@ func execArgs(vmName string, args []string) []string {
 	return append([]string{"shell", vmName}, args...)
 }
 
-// SpawnLimaVM creates and starts a Lima VM. env is added to the environment of
-// limactl, so that the yq expression can read values with strenv().
-func SpawnLimaVM(vmName string, arch string, tmpl string, yqExpression string, env []string) error {
+// SpawnLimaVM creates and starts a Lima VM.
+func SpawnLimaVM(vmName string, arch string, tmpl string, yqExpression string) error {
 	// Define the command to spawn a Lima VM
 	cmd := exec.Command("limactl", "start", "--name", vmName, tmpl, "--arch", arch, "--tty=false", "--set", yqExpression)
-	cmd.Env = append(os.Environ(), env...)
 
 	// Set the output to os.Stdout and os.Stderr
 	cmd.Stdout = os.Stdout

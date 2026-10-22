@@ -58,7 +58,7 @@ func (c ShikariCluster) CreateCluster(scale bool) error {
 
 	setter := yqSetter{}
 
-	// example: --set '.env.SHIKARI_CLUSTER_NAME = strenv(SHIKARI_YQ_VALUE_0) | ...'
+	// example: --set '.env.SHIKARI_CLUSTER_NAME = ("bXVycGh5" | @base64d) | ...'
 	setter.setEnv("SHIKARI_CLUSTER_NAME", c.Name)
 
 	// record the template, so that scale can create matching VMs
@@ -106,7 +106,7 @@ func (c ShikariCluster) CreateCluster(scale bool) error {
 			vmSetter := setter.clone()
 			vmSetter.setEnv("SHIKARI_VM_MODE", c.getInstanceMode(vmName))
 
-			return lima.SpawnLimaVM(vmName, c.Arch, tmpl, vmSetter.expression(), vmSetter.env)
+			return lima.SpawnLimaVM(vmName, c.Arch, tmpl, vmSetter.expression())
 		})
 		if err != nil {
 			errs = append(errs, err)
