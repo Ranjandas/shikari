@@ -3,7 +3,6 @@ package shikari
 import (
 	"fmt"
 	"reflect"
-	"regexp"
 	"strings"
 	"testing"
 
@@ -26,10 +25,8 @@ func startedVMs(calls [][]string) []string {
 	return names
 }
 
-// injectedEnv resolves the `.env.X = strenv(Y)` and
-// `.env.X = (.env.X // strenv(Y))` parts of the --set expression of vmName
-// with the environment limactl ran with.
-func injectedEnv(t *testing.T, fake *limatest.Fake, calls [][]string, vmName string) map[string]string {
+// injectedEnv returns the .env values the --set expression of vmName sets.
+func injectedEnv(t *testing.T, calls [][]string, vmName string) map[string]string {
 	t.Helper()
 
 	var expression string
@@ -43,10 +40,11 @@ func injectedEnv(t *testing.T, fake *limatest.Fake, calls [][]string, vmName str
 		}
 	}
 
-	env := fake.Env(vmName)
 	injected := map[string]string{}
-	for _, match := range regexp.MustCompile(`\.env\.(\w+) = (?:\(\.env\.\w+ // )?strenv\((\w+)\)`).FindAllStringSubmatch(expression, -1) {
-		injected[match[1]] = env[match[2]]
+	for path, value := range assignments(t, expression) {
+		if key, ok := strings.CutPrefix(path, ".env."); ok {
+			injected[key] = value
+		}
 	}
 
 	return injected
@@ -70,12 +68,12 @@ func TestCreateClusterSpawnsEachVM(t *testing.T) {
 		if !strings.Contains(joined, "template://hashibox --arch aarch64 --tty=false --set") {
 			t.Errorf("limactl %s: want the template and arch", joined)
 		}
-		if strings.Contains(joined, "quoted") {
-			t.Errorf("limactl %s: the license value is on the command line", joined)
+		if strings.Contains(joined, "quoted") || strings.Contains(joined, "env(") {
+			t.Errorf("limactl %s: want the values base64 encoded, without env operations", joined)
 		}
 	}
 
-	env := injectedEnv(t, fake, calls, "murphy-cli-01")
+	env := injectedEnv(t, calls, "murphy-cli-01")
 	want := map[string]string{
 		"SHIKARI_CLUSTER_NAME":  "murphy",
 		"SHIKARI_TEMPLATE":      "template://hashibox",
@@ -90,7 +88,7 @@ func TestCreateClusterSpawnsEachVM(t *testing.T) {
 		t.Errorf("murphy-cli-01 env = %v, want %v", env, want)
 	}
 
-	if mode := injectedEnv(t, fake, calls, "murphy-srv-02")["SHIKARI_VM_MODE"]; mode != "server" {
+	if mode := injectedEnv(t, calls, "murphy-srv-02")["SHIKARI_VM_MODE"]; mode != "server" {
 		t.Errorf("murphy-srv-02 SHIKARI_VM_MODE = %q, want server", mode)
 	}
 }
@@ -126,7 +124,7 @@ func TestScaleUpFillsGaps(t *testing.T) {
 		t.Fatalf("started %v, want %v", got, want)
 	}
 
-	env := injectedEnv(t, fake, calls, "murphy-srv-02")
+	env := injectedEnv(t, calls, "murphy-srv-02")
 	if env["SHIKARI_SERVER_COUNT"] != "3" || env["SHIKARI_CLIENT_COUNT"] != "1" || env["SHIKARI_LAUNCH_MODE"] != "scale" {
 		t.Errorf("murphy-srv-02 env = %v, want 3 servers, 1 client, scale", env)
 	}

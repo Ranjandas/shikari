@@ -25,8 +25,8 @@ func TestGenerateEnvArgsReturnsErrors(t *testing.T) {
 	if err := c.generateEnvArgs(&s); err != nil {
 		t.Fatal(err)
 	}
-	if s.env[0] != "SHIKARI_YQ_VALUE_0=abc=def" {
-		t.Errorf("env = %v", s.env)
+	if got := assignments(t, s.expression())[".env.CONSUL_LICENSE"]; got != "abc=def" {
+		t.Errorf("CONSUL_LICENSE = %q, want abc=def", got)
 	}
 }
 

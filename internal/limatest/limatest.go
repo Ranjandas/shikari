@@ -12,8 +12,8 @@ import (
 )
 
 // script records each call as its arguments separated by \x1f, prints the
-// instances for `list --json`, saves the environment of `start --name <vm>`,
-// and fails calls that contain a line of the fail file.
+// instances for `list --json`, and fails calls that contain a line of the fail
+// file.
 const script = `#!/bin/sh
 dir=$(dirname "$0")
 line=""
@@ -28,7 +28,6 @@ fi
 
 case "$1" in
 list) cat "$dir/instances" ;;
-start) if [ "$2" = "--name" ]; then env > "$dir/env-$3"; fi ;;
 esac
 `
 
@@ -102,25 +101,6 @@ func (f *Fake) Calls() [][]string {
 	}
 
 	return calls
-}
-
-// Env returns the environment `limactl start --name vmName` ran with.
-func (f *Fake) Env(vmName string) map[string]string {
-	f.t.Helper()
-
-	data, err := os.ReadFile(filepath.Join(f.dir, "env-"+vmName))
-	if err != nil {
-		f.t.Fatalf("limactl start --name %s was not called: %v", vmName, err)
-	}
-
-	env := map[string]string{}
-	for _, line := range strings.Split(string(data), "\n") {
-		if key, value, ok := strings.Cut(line, "="); ok {
-			env[key] = value
-		}
-	}
-
-	return env
 }
 
 func (f *Fake) write(name string, content string, mode os.FileMode) {
