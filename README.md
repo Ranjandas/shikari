@@ -66,6 +66,28 @@ murphy     murphy-srv-03    aarch64    192.168.105.15    Running    nomad-consul
 
 `IP` is the address the host can reach the VM on, and is empty for stopped VMs. `SCENARIO` comes from the `SHIKARI_SCENARIO_NAME` env variable. Shikari sets it at create time to the template's file name without the extension (or to its directory for templates named `hashibox.yaml`, as in shikari-scenarios), unless the template or `--env` sets it. Pass `--no-header` to leave out the header line, eg: for scripts.
 
+For scripts, `-o json` (`--output json`) prints the VMs as a JSON array. Disk and memory are in bytes, and `role` is `server` or `client`.
+
+```
+$ shikari list -n murphy -o json
+[
+  {
+    "cluster": "murphy",
+    "name": "murphy-cli-01",
+    "role": "client",
+    "arch": "aarch64",
+    "ip": "192.168.105.10",
+    "status": "Running",
+    "scenario": "nomad-consul-quickstart",
+    "disk_bytes": 107374182400,
+    "memory_bytes": 4294967296,
+    "cpus": 4,
+    "image": "/Users/ranjan/workspace/github/shikari-scenarios/packer/.artifacts/c-1.18-n-1.7/c-1.18-n-1.7.qcow2"
+  },
+  ...
+]
+```
+
 #### Helper Variables
 
 When spinning up the VMs, Shikari injects a few environment variables into each VM, which would give some additional context to the provisioning scripts that would include:
